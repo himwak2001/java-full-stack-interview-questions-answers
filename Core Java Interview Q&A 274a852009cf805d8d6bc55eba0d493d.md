@@ -5170,6 +5170,266 @@ Double d = 3.14;
 Double e = doSomething(d);    // Works with Double
 ```
 
+<br><br>
+### Functional Programming - Lamdba Expressions and Streams
+
+**What is functional programming?**
+
+Functional programming is a programming paradigm that focuses on writing programs using **pure functions** and **immutable data**.
+
+- Computation is treated as the evaluation of mathematical functions
+- Functions do not change state or modify data (no side effects)
+- Output of a function depends only on its input
+- Emphasizes immutability instead of changing variables
+- Leads to code that is easier to understand, test, and parallelize
+
+In Java, functional programming concepts were introduced mainly in **Java 8** using:
+- Lambda expressions
+- Functional interfaces
+- Stream API
+
+<br><br>
+**Can you give an example of functional programming?**
+
+- The first example uses the **traditional imperative approach**.
+- The second example uses **functional programming concepts** introduced in Java 8.
+
+#### Imperative (Usual) Approach
+```java
+@Test
+public void sumOfOddNumbers_Usual() {
+    List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+    int sum = 0;
+    for (int number : numbers)
+        if (number % 2 != 0)
+            sum += number;
+    assertEquals(11, sum);
+}
+```
+- Uses a mutable variable sum
+- Explicit loop (for)
+- Explicit conditional logic (if)
+- State (sum) changes during iteration
+- This style is not functional, as it relies on mutation and control flow statements
+
+#### Functional Programming Approach
+```java
+@Test
+public void sumOfOddNumbers_FunctionalProgrammingExample() {
+    List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+    int sum = numbers.stream()
+                     .filter(Test123::isOdd)
+                     .reduce(0, Integer::sum);
+    assertEquals(11, sum);
+}
+
+static boolean isOdd(int number) {
+    return number % 2 != 0;
+}
+```
+- Uses Stream API
+- No explicit loops or mutable state
+- `filter` selects only odd numbers
+- `reduce` combines values into a single result
+- Uses method references (`Test123::isOdd`, `Integer::sum`)
+- Each operation returns a new result without modifying existing data
+
+
+
+<br><br>
+**What is a Stream?**
+- A **Stream** in Java represents a **sequence of elements** that can be processed in a functional style.
+  - It is **not a data structure**
+  - It does **not store data**
+  - It works on data provided by a **source** such as a `List`, `Set`, `Array`, or I/O channel.
+- In the given example, the stream is created from a `List` using:
+  ```java
+  numbers.stream();
+  ```
+- A stream processes data through a pipeline of operations, which consists of:
+  - Source
+  - Intermediate operations
+  - Terminal operation
+- **Intermediate operations:**
+  - Transform a stream into another stream
+  - Are lazy (they do not execute immediately)
+  - Can be chained together
+  - Example:
+    ```java
+    filter(Test123::isOdd)
+    ```  
+- **Terminal operations:**
+  - Trigger the execution of the stream pipeline
+  - Produce a result or a side effect
+  - Once a terminal operation is called, the stream cannot be reused
+  - Example:
+    ```java
+    reduce(0, Integer::sum)
+    ```
+- Execution happens only when a terminal operation is invoked, not when intermediate operations are defined.
+- Streams can be sequential or parallel:
+  ```java
+    numbers.stream();        // sequential
+    numbers.parallelStream(); // parallel
+  ```
+
+
+<br><br>
+**Explain about streams with an example?**
+```java
+Arrays.stream(new String[] { "Ram", "Robert", "Rahim" })
+      .filter(s -> s.startsWith("Ro"))
+      .map(String::toLowerCase)
+      .sorted()
+      .forEach(System.out::println);
+```
+#### Step-by-step explanation of the example:
+- Step 1: Source
+  - An array of strings is converted into a stream using `Arrays.stream(...)`
+- Step 2: Intermediate operation - filter
+  - Filters elements starting with `"Ro"`
+  - Uses a lambda expression
+  - Returns a new stream
+- Step 3: Intermediate operation – map
+  - Converts each string to lowercase
+  - Uses a method reference
+  - Returns a new stream
+- Step 4: Intermediate operation – sorted
+  - Sorts the elements alphabetically
+  - Returns a new stream
+- Step 5: Terminal operation – forEach
+  - Consumes the stream
+  - Prints each element
+  - Ends the stream pipeline
+
+
+<br><br>
+**What are Intermediate Operations in Streams?**
+- **Intermediate Operations** are operations that:
+  - Take a stream as input
+  - Return **another stream** as output
+  - Are **lazy** (they do not execute immediately)
+  - Are executed only when a **terminal operation** is invoked
+
+- Because they return a stream, multiple intermediate operations can be **chained together** to form a pipeline.
+
+- Common examples of intermediate operations:
+  - `map`
+  - `filter`
+  - `distinct`
+  - `sorted`
+  - `limit`
+  - `skip`
+
+- **Distinct Example**
+  ```java
+  @Test
+    public void streamExample_Distinct() {
+        List<Integer> numbers = Arrays.asList(1, 1, 2, 6, 2, 3);
+        numbers.stream()
+            .distinct()
+            .forEach(System.out::print);
+        // Output: 1263
+    }
+  ```
+  - `distinct()` is an intermediate operation
+  - Removes duplicate elements
+  - It is a stateful operation because it needs to remember previously seen elements
+  - Returns a new stream without duplicates
+
+- **Sorted Example**
+  ```java
+  @Test
+    public void streamExample_Sorted() {
+        List<Integer> numbers = Arrays.asList(1, 1, 2, 6, 2, 3);
+        numbers.stream()
+            .sorted()
+            .forEach(System.out::print);
+        // Output: 112236
+    }
+  ```
+  - `sorted()` is an intermediate operation.
+  - Sorts elements using natural ordering (or a comparator)
+  - It is a stateful operation because elements must be compared with each other
+  - Returns a new sorted stream
+
+- **Filter Example**
+  ```java
+  @Test
+    public void streamExample_Filter() {
+        List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+        numbers.stream()
+            .filter(Test123::isOdd)
+            .forEach(System.out::print);
+        // Output: 137
+    }
+  ```
+  - `filter()` is an intermediate operation
+  - Selects elements that match a condition
+  - It is a stateless operation because each element is processed independently
+  - Returns a new stream containing only matching elements
+
+
+<br><br>
+**What are Terminal Operations in Streams?**
+- **Terminal Operations**:
+  - End the stream pipeline
+  - Trigger execution of all intermediate operations
+  - Either **produce a result** or **cause a side effect**
+  - Consume the stream (the stream cannot be reused afterward)
+
+- **reduce() – Produces a result**
+  ```java
+  @Test
+    public void sumOfOddNumbers_FunctionalProgramming() {
+        List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+        int sum = numbers.stream()
+                        .filter(Test123::isOdd)
+                        .reduce(0, Integer::sum);
+        assertEquals(11, sum);
+    }
+  ```
+  - `reduce()` combines all elements into a single value
+  - `0` is the identity value
+  - `Integer::sum`  defines how elements are combined
+  - Commonly used for sum, min, max, or custom aggregation
+
+- **forEach() – Creates a side effect**
+  ```java
+  @Test
+    public void streamExample_Filter() {
+        List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+        numbers.stream()
+            .filter(Test123::isOdd)
+            .forEach(System.out::print);
+        // Output: 137
+    }
+  ```
+  - `forEach()` performs an action on each element
+  - Used for:
+    - Printing
+    - Logging
+    - Writing to files or databases
+  - Does not return a result
+
+- **collect() – Transforms stream into a collection**
+  ```java
+  @Test
+    public void streamExample_Collect() {
+        List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+        List<Integer> oddNumbers = numbers.stream()
+                                        .filter(Test123::isOdd)
+                                        .collect(Collectors.toList());
+        System.out.println(oddNumbers);
+        // Output: [1, 3, 7]
+    }
+  ```
+  - `collect()` gathers stream elements into a data structure
+  - Uses a Collector (e.g., `toList`, `toSet`, `groupingBy`)
+  - Very flexible and commonly used terminal operation
+
+
+
 
 
 <br><br>
