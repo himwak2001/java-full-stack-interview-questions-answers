@@ -5430,6 +5430,302 @@ Arrays.stream(new String[] { "Ram", "Robert", "Rahim" })
 
 
 
+<br><br>
+**What are Method References?**
+- **Method References** are a shorthand notation of **Lambda Expressions**.
+- They allow referring to a method **without invoking it**.
+- Introduced in **Java 8**, mainly used with **Streams** and **Functional Interfaces**.
+- They improve **readability** and **conciseness** of code.
+
+### General Syntax
+
+```java
+ClassName::methodName
+```
+or
+```java
+objectReference::methodName
+```
+
+
+<br><br>
+**What are Lambda Expressions?**
+- A **Lambda Expression** is an **anonymous function**.
+- It is a method **without a name**, **access modifier**, or **return type declaration**.
+- Lambda expressions are mainly used to provide **implementation of functional interfaces**.
+- Introduced in **Java 8** to support **functional programming**.
+
+#### General Syntax
+
+```java
+(parameters) -> { executed code }
+```
+
+#### Example
+```java
+(a, b) -> a + b
+() -> System.out.println("Hello")
+```
+
+#### Lambda Expression in Streams Example
+```java
+numbers.stream()
+       .filter(n -> n % 2 != 0)
+       .forEach(System.out::println);
+```
+
+<br><br>
+**Can you give an example of Lambda Expression?**
+
+A **Lambda Expression** provides a concise way to represent an anonymous function.
+
+#### Example Code
+
+```java
+@Test
+public void lambdaExpression_simpleExample() {
+    List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+
+    numbers.stream()
+           .filter(Test123::isOdd)
+           .forEach(number -> System.out.print(number));
+    // Output: 137
+}
+```
+- `number -> System.out.print(number)` is a lambda expression
+- `number` is the parameter
+- `System.out.print(number)` is the executed code
+- This lambda is passed to the `forEach` method, which applies it to every element in the stream
+
+
+<br><br>
+**Can you explain the relationship between Lambda Expression and Functional Interfaces?**
+- A **Lambda Expression** in Java is a concise way to implement a **Functional Interface**.
+- A **Functional Interface** is an interface that has **exactly one abstract method**.
+
+Example from Java API:
+
+```java
+@FunctionalInterface
+public interface Consumer<T> {
+    void accept(T t);
+}
+```
+
+- Takes one input
+- Returns no result
+- Usually performs side effects (like printing, logging, etc.)
+
+
+#### How Lambda Expressions Fit In
+
+Consider this lambda expression:
+```java
+number -> System.out.print(number)
+```
+This lambda:
+- Takes one input (number)
+- Returns nothing
+- Performs a side effect (printing)
+
+#### Connection Through forEach
+
+The forEach method is defined as:
+```java
+void forEach(Consumer<? super T> action)
+```
+```java
+numbers.stream().forEach(number -> System.out.print(number));
+```
+Java does the following:
+- Sees that forEach expects a `Consumer<T>`
+- Matches the lambda expression to `Consumer.accept(T)`
+- Automatically creates an implementation of `Consumer<T>`
+
+
+<br><br>
+**What is a Predicate?**
+
+A **Predicate** is a functional interface in Java that represents a condition (boolean-valued function).
+
+```java
+@FunctionalInterface
+public interface Predicate<T> {
+    boolean test(T t);
+}
+```
+- Takes one argument
+- Returns true or false
+- Commonly used for filtering conditions
+
+#### Predicate Example with Streams
+```java
+@Test
+public void lambdaExpression_predicate() {
+    List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+    numbers.stream()
+           .filter((number) -> (number % 2 != 0))
+           .forEach(number -> System.out.print(number));
+    // 137
+}
+```
+
+#### Explanation
+```java
+(number) -> (number % 2 != 0)
+```
+- This is a Predicate
+- Input: `number`
+- Logic: checks if the number is odd
+- Output: `true` or `false`
+
+
+
+<br><br>
+**What is the functional interface - Function?**
+
+`Function` is a **functional interface** in Java that represents a function which:
+
+- Takes **one input**
+- Produces **one result**
+
+```java
+@FunctionalInterface
+public interface Function<T, R> {
+    R apply(T t);
+}
+```
+#### Type Parameters
+- `T` → Type of input
+- `R` → Type of result (output)
+
+#### Example Using `Function`
+```java
+@Test
+public void functionExample() {
+    List<String> names = Arrays.asList("Ram", "Robert", "Rahim");
+
+    names.stream()
+         .map(String::length)
+         .forEach(System.out::println);
+}
+```
+- `String::length` is a `Function<String, Integer>`
+- Input: `String`
+- Output: `Integer` (length of the string)
+
+
+<br><br>
+**What is a Consumer?**
+
+`Consumer` is a **functional interface** in Java that represents an operation which:
+
+- Takes **one input**
+- Returns **no result**
+- Is typically used for **side effects** (printing, logging, storing data, etc.)
+
+```java
+@FunctionalInterface
+public interface Consumer<T> {
+    void accept(T t);
+}
+```
+
+#### Example
+```java
+@Test
+public void consumerExample() {
+    List<Integer> numbers = Arrays.asList(1, 3, 4, 6, 2, 7);
+
+    numbers.stream()
+           .forEach(number -> System.out.print(number));
+}
+```
+
+
+<br><br>
+**What is a Supplier?**
+
+`Supplier` is a **functional interface** in Java that:
+
+- Takes **no input**
+- Returns a **result**
+- Is used to **supply or generate values**
+
+```java
+@FunctionalInterface
+public interface Supplier<T> {
+    T get();
+}
+```
+#### Example
+```java
+Supplier<String> supplier = () -> "Hello Supplier";
+System.out.println(supplier.get());
+```
+
+#### Real-World Use Cases
+- Generating default values
+- Lazy initialization
+- Factory methods
+- Supplying random values or timestamps
+
+
+<br><br>
+**Can you give examples of functional interfaces with multiple arguments?**
+
+Java provides **functional interfaces that accept more than one argument**. These are commonly used
+with **lambda expressions** and **method references**.
+
+
+#### 1. BiFunction<T, U, R>
+
+Takes **two input arguments** and returns a result.
+
+```java
+@FunctionalInterface
+public interface BiFunction<T, U, R> {
+    R apply(T t, U u);
+}
+```
+#### Example
+```java
+BiFunction<Integer, Integer, Integer> add = (a, b) -> a + b;
+System.out.println(add.apply(10, 20)); // 30
+```
+
+#### 2. BiPredicate<T, U>
+Takes two arguments and returns a boolean.
+```java
+@FunctionalInterface
+public interface BiPredicate<T, U> {
+    boolean test(T t, U u);
+}
+```
+#### Example
+```java
+BiPredicate<Integer, Integer> isGreater =
+        (a, b) -> a > b;
+
+System.out.println(isGreater.test(10, 5)); // true
+```
+
+#### 3. BiConsumer<T, U>
+Takes two arguments and returns nothing (side effects only).
+```java
+@FunctionalInterface
+public interface BiConsumer<T, U> {
+    void accept(T t, U u);
+}
+```
+#### Example
+```java
+BiConsumer<String, Integer> print =
+        (name, age) -> System.out.println(name + " : " + age);
+
+print.accept("Sachin", 45);
+```
+
 
 
 <br><br>
