@@ -7,6 +7,8 @@
 - Java is a high-level programming language that was developed by James Gosling in the year 1982.
 - It is based on the principles of object-oriented programming and can be used to develop large-scale applications.
 
+
+<br><br>
 **What are the top Java features ?**
 
 - **Simple:** Easy to learn with clean, readable syntax.
@@ -21,6 +23,7 @@
 - **Multithreaded:** Handles multiple tasks simultaneously using threads.
 - **Architecture Neutral:** Not tied to any specific hardware or OS
 
+<br><br>
 **What is JVM ?**
 
 - **JVM (Java Virtual Machine)** is a program that loads, verifies(ensure it is type-safe, structurally correct, and adheres to Java’s security and access rules before execution), and runs Java bytecode.
@@ -29,6 +32,8 @@
 - It handles the full execution cycle: **loading classes**, **verifying bytecode**, **executing code**, and **garbage collection**.
 - Though JVM is **platform dependent**, it enables Java to be **platform independent** by abstracting system-specific details
 
+
+<br><br>
 **What are Memory storages available with JVM?**
 
 ![image.png](image.png)
@@ -57,12 +62,16 @@
 - JVM converts bytecode to executable instructions, and the executable instructions are different in different operating systems, so there are different JVMs for different operating systems.
 - A JVM for windows is different from a JVM for mac; however, both the JVMs understand the bytecode and convert it to the executable code for the respective operating system.
 
+<br><br>
 **Why is Java not a pure object oriented language?**
 
 Java supports primitive data types - byte, boolean, char, short, int, float, long, and double and hence it is not a pure **object oriented language**.
 
+<br><br>
 **Difference between Heap and Stack Memory in java. And how java utilizes this.**
 
+
+<br><br>
 **Difference between JVM, JRE, and JDK.**
 
 - **JVM**:
@@ -75,6 +84,7 @@ Java supports primitive data types - byte, boolean, char, short, int, float, lon
     - JDK stands for Java Development Kit which provides the environment to develop and execute Java programs.
     - JDK is a package that includes two things, Development Tools to provide an environment to develop your Java programs and, JRE to execute Java programs or applications.
 
+<br><br>
 **Explain public static void main(String args[]) in Java.**
 
 ![image.png](image%201.png)
@@ -82,6 +92,7 @@ Java supports primitive data types - byte, boolean, char, short, int, float, lon
 1. **static**: JVM call this method directly with class name to avoid unnecessary allocation of the memory(in case of non-static).
 2. **String args[]:** It stores Java command-line arguments and is an array of type `java.lang.String` class.
 
+<br><br>
 **Regarding Packages in Java**
 
 - **Packages** are used to group related classes and interfaces, helping with **access control**, **namespace management**, and **code organization**.
@@ -90,6 +101,7 @@ Java supports primitive data types - byte, boolean, char, short, int, float, lon
     - **Built-in packages** (e.g., `java.util`, `java.io`)
     - **User-defined packages** created by developers to organize custom code
 
+<br><br>
 **How is Java different from C++?**
 
 1. Java is platform independent. C++ is not platform independent.
@@ -102,17 +114,19 @@ remove an object from memory. In Java, JVM takes care of removing objects from m
 using a process called Garbage Collection.
 5. C++ supports Multiple Inheritance. Java does not support Multiple Inheritance.
 
+<br><br>
 **What is the role for a `ClassLoader` in Java ?**
 
 - A Java program is made up of a number of custom classes (written by programmers like us) and core classes (which come pre-packaged with Java).
 - When a program is executed, JVM needs to load the content of all the needed classes, and it uses a ClassLoader to find the classes.
-- Three Class Loaders are shown in the picture:
+- There are three class loader:
     - System Class Loader - Loads all classes from CLASSPATH
     - Extension Class Loader - Loads all classes from extension directory
     - Bootstrap Class Loader - Loads all the Java core files
 - When JVM needs to find a class, it starts with the System Class Loader; if it is not found, it checks with the Extension Class Loader; if it is still not found, it goes to the Bootstrap Class Loader.
 - If a class is still not found, a `ClassNotFoundException` is thrown.
 
+<br><br>
 **What do you understand by an instance variable and a local variable?**
 
 1. **Instance Variable**:
@@ -139,7 +153,7 @@ using a process called Garbage Collection.
         }
     ```
     
-
+<br><br>
 **What are the default values assigned to variables and instances in java?**
 
 - There are no default value assigned to the *local variables* in Java. We need to initialize it before using it, otherwise it will throw compilation error of (Variable might not be initialized)
@@ -168,7 +182,7 @@ using a process called Garbage Collection.
     }
     ```
     
-
+<br><br>
 **Tell us something about JIT compiler.**
 
 - The JIT (Just-In-Time) Compiler is a part of the JVM designed to *significantly improve runtime speed* of Java applications after they've started.
@@ -178,7 +192,9 @@ using a process called Garbage Collection.
 
 ![image.png](image%202.png)
 
+<br><br>
 ### Strings
+---
 
 **What is Java String Pool?**
 
@@ -188,6 +204,8 @@ using a process called Garbage Collection.
 - The variable holding the string reference is stored in the stack memory.
 - Whenever we create a new string object, JVM checks for the presence of the object in the String pool, If String is available in the pool, the same object reference is shared with the variable, else a new object is created.
 
+
+<br><br>
 **Are all String’s immutable ?**
 
 - Value of a String Object once created cannot be modified. Any modification on a String object creates a new String object.
@@ -206,6 +224,7 @@ using a process called Garbage Collection.
     ```
     
 
+<br><br>
 **Where are string values stored in memory?**
 
 The location where the string values are stored in memory depends on how we create them.
@@ -233,6 +252,7 @@ The location where the string values are stored in memory depends on how we crea
         ```
         
 
+<br><br>
 **Why should you be careful about String Concatenation(+) operator in Loops?**
 
 - Consider the code below
@@ -247,6 +267,7 @@ The location where the string values are stored in memory depends on how we crea
     
 - How many objects are created in memory? More than 100000 Strings are created. This will have a huge performance impact.
 
+<br><br>
 **How do you solve above problem?**
 
 - The easiest way to solve above problem is using `StringBuffer`. On my machine `StringBuffer` version took 0.5 seconds. String version took 25 Seconds. That’s a 50 fold increase in performance.
@@ -260,6 +281,7 @@ The location where the string values are stored in memory depends on how we crea
     ```
     
 
+<br><br>
 **What are the differences between String and `StringBuffer`?**
 
 - Objects of type String are immutable; `StringBuffer` is used to represent values that can be modified.
@@ -267,15 +289,19 @@ The location where the string values are stored in memory depends on how we crea
 - Both String and `StringBuffer` are thread-safe.
 - `StringBuffer` is implemented by using the synchronized keyword on all methods.
 
+
+<br><br>
 **What are the difference between StringBuffer and StringBuilder ?**
 
-| **StringBuffer** | **StringBuilder** |
+| StringBuffer | StringBuilder |
 | --- | --- |
 | Provides functionality to work with **mutable strings**. | Also used for **building mutable strings**, generally in single-threaded applications. |
 | **Synchronized**, so it is **thread-safe**; two threads cannot call its methods simultaneously. | **Not synchronized**, so it is **not thread-safe**; two threads can access methods concurrently. |
 | **Slower** due to synchronization overhead. | **Faster** because it is non-synchronized. |
 | Suitable for **multi-threaded programs** where string modifications happen concurrently. | Suitable for **single-threaded programs** where performance is important. |
 
+
+<br><br>
 **Can you give examples of different utility methods in String class?**
 
 - String class defines a number of methods to get information about the string content.
@@ -298,12 +324,14 @@ The location where the string values are stored in memory depends on how we crea
     ```
     
 
+<br><br>
 **Which among String Builder or String Buffer should be preferred when there are a lot of updates required to be done in the data?**
 
 - String is immutable, making it inefficient for scenarios requiring frequent updates.
 - Instead, we can use StringBuilder or StringBuffer. If thread safety is required (synchronized operations), StringBuffer should be used.
 - However, if performance is a priority in a single-threaded context, StringBuilder is the better choice since it is faster and does not incur synchronization overhead.
 
+<br><br>
 **How is the creation of a String using new() different from that of a literal?**
 
 - A string literal stores its value in the **string pool**, so the same content can be reused.
@@ -313,6 +341,26 @@ The location where the string values are stored in memory depends on how we crea
 
 ![image.png](image%204.png)
 
+
+<br><br>
+**Can you tell the difference between equals() method and equality operator (==) in Java?**
+
+- **`==` (Operator) ↔ Reference Comparison:** The `==` operator checks if two object variables point to the **exact same memory location** (i.e., they are the same object).
+- **`.equals()` (Method) ↔ Content Comparison:** The `.equals()` method checks for **logical equivalence** (if the data inside the objects is the same).
+- **Default vs. Overridden:** The default implementation of `equals()` in the `Object` class is the same as `==`. However, it must be **overridden** in classes like `String` or our custom classes to enable meaningful content comparison.
+
+```java
+String s1 = new String("Hi");
+String s2 = new String("Hi");
+
+// == checks references (different memory slots)
+System.out.println(s1 == s2);      // Output: false 
+
+// .equals() checks content (same characters)
+System.out.println(s1.equals(s2)); // Output: true
+```
+
+<br><br>
 **What do you mean by data encapsulation?**
 
 - Data Encapsulation is an Object-Oriented concept  of wrapping the data attributes and their behaviors in a single unit.
@@ -345,22 +393,8 @@ public class Student {
 }
 ```
 
-**Can you tell the difference between equals() method and equality operator (==) in Java?**
 
-- **`==` (Operator) ↔ Reference Comparison:** The `==` operator checks if two object variables point to the **exact same memory location** (i.e., they are the same object).
-- **`.equals()` (Method) ↔ Content Comparison:** The `.equals()` method checks for **logical equivalence** (if the data inside the objects is the same).
-- **Default vs. Overridden:** The default implementation of `equals()` in the `Object` class is the same as `==`. However, it must be **overridden** in classes like `String` or our custom classes to enable meaningful content comparison.
 
-```java
-String s1 = new String("Hi");
-String s2 = new String("Hi");
-
-// == checks references (different memory slots)
-System.out.println(s1 == s2);      // Output: false 
-
-// .equals() checks content (same characters)
-System.out.println(s1.equals(s2)); // Output: true
-```
 
 **Briefly explain the concept of constructor overloading**
 
@@ -632,8 +666,9 @@ public class StaticOverloadDemo {
 - **ClassLoader** is a part of the **Java Runtime Environment (JRE)** responsible for **dynamically loading classes and interfaces** into the JVM during program execution.
 - It loads classes **on demand**, meaning only when they’re needed—like loading the `Scanner` class when reading input from the console.
 
+<br><br>
 ### Wrapper Classes
-
+---
 **What are Wrapper Classes in Java, and why are they needed?**
 
 Wrapper classes in Java are object representations of primitive data types. Java provides 8 built-in wrapper classes: `Byte`, `Short`, `Integer`, `Long`, `Float`, `Double`, `Character`, and `Boolean`.
@@ -660,6 +695,7 @@ obj.toString();      // returns "5"
 obj.compareTo(10);   // compares with another Integer
 ```
 
+<br><br>
 **What are the different ways of creating Wrapper Class Instance  ?**
 
 Two ways of creating Wrapper Class Instances are described below.
@@ -695,6 +731,7 @@ Two ways of creating Wrapper Class Instances are described below.
     ```
     
 
+<br><br>
 **What are differences in the two ways of creating Wrapper Classes?**
 
 - The difference is that using the Constructor you will always create a new object, while using valueOf() static method, it may return you a cached value within a range.
@@ -726,6 +763,7 @@ Two ways of creating Wrapper Class Instances are described below.
     ```
     
 
+<br><br>
 **What is Auto Boxing?**
 
 - Autoboxing is the automatic conversion that the Java compiler makes between the primitive types and their corresponding object wrapper classes.
@@ -744,7 +782,7 @@ Two ways of creating Wrapper Class Instances are described below.
     ten++;//allowed. Java does had work behind the screen for us
     ```
     
-
+<br><br>
 **What are the advantages of Auto Boxing?**
 
 - Auto Boxing helps in saving memory by reusing already created Wrapper objects.
@@ -769,6 +807,7 @@ Two ways of creating Wrapper Class Instances are described below.
     ```
     
 
+<br><br>
 **What is casting ?**
 
 Casting is used when we want to convert one data type to another.
@@ -777,6 +816,8 @@ There are two types of Casting
 - Implicit Casting
 - Explicit Casting
 
+
+<br><br>
 **What is Implicit Casting?**
 
 - Implicit Casting is done by the compiler.
@@ -790,6 +831,7 @@ There are two types of Casting
     ```
     
 
+<br><br>
 **What is Explicit Casting?**
 
 - Explicit Casting is done through code.
@@ -811,8 +853,9 @@ There are two types of Casting
     ```
     
 
+<br><br>
 ### Object Oriented Programming Basics
-
+---
 ```java
 package com.rithus;
 public class CricketScorer {
