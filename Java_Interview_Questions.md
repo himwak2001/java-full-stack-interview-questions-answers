@@ -888,6 +888,7 @@ private int score;
 }
 ```
 
+<br><br>
 **What is a Class ?**
 
 - A class is a Template.
@@ -896,6 +897,8 @@ private int score;
 - A class provides the blueprint from which individual objects are created.
 - A class enables code reusability by allowing multiple objects to share the same structure and behavior.
 
+
+<br><br>
 **What is an Object ?**
 
 - An instance of a class.
@@ -904,6 +907,8 @@ private int score;
 - An object encapsulates both data (state) and methods (behavior) defined in the class.
 - Each object maintains its own independent copy of instance variables, even though all objects share the same class definition.
 
+
+<br><br>
 **What is state of an Object?**
 
 - Values assigned to instance variables of an object.
@@ -918,7 +923,7 @@ private int score;
     //State of scorer is (score => 10)
     ```
     
-
+<br><br>
 **What is behavior of an Object?**
 
 - Methods supported by an object.
@@ -926,6 +931,8 @@ private int score;
 - Behavior represents the actions an object can perform based on its methods.
 - Different objects of the same class can invoke the same behavior, but the effect may vary based on their individual state.
 
+
+<br><br>
 **What is the super class of every class in Java?**
 
 - Every class in Java is a sub class of the class Object.
@@ -946,6 +953,8 @@ private int score;
     
 - In the above example, toString, hashCode and clone methods for String class are inherited from Object class and overridden.
 
+
+<br><br>
 **Explain about `toString` method ?**
 
 - toString method is used to print the content of an Object.
@@ -989,7 +998,7 @@ private int score;
     System.out.println(animal);//Animal [name=Tommy, type=Dog]
     ```
     
-
+<br><br>
 **What is the use of equals method in Java?**
 
 - Equals method is used when we compare two objects.
@@ -1064,6 +1073,7 @@ private int score;
     Above code compares the values (id's) of the objects.
     
 
+<br><br>
 **What are the important things to consider when implementing equals method?**
 
 - Any equals implementation should satisfy these properties:
@@ -1093,6 +1103,7 @@ private int score;
     ```
     
 
+<br><br>
 **What is the hashCode method used for in Java?**
 
 - HashCode's are used in hashing to decide which group (or bucket) an object should be placed into.
@@ -1117,6 +1128,7 @@ private int score;
     ```
     
 
+<br><br>
 **What is Method Overloading?**
 
 Method overloading in Java is a feature that allows a class to have **multiple methods with the same name but different parameters** (number, type, or order). It helps increase code readability and flexibility. Here, method resolution happens during compile-time. It is an example of Compile-time Polymorphism (or Static Polymorphism), as the compiler determines which method to bind based on the arguments.
@@ -1155,6 +1167,7 @@ It is also known as:
     ```
     
 
+<br><br>
 **What is method overriding?**
 
 Method overriding in Java is a feature that allows a **child class to provide a specific implementation of a method already defined in its parent class**.
@@ -1183,7 +1196,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     }
     ```
     
-
+<br><br>
 **Can super class reference variable can hold an object of sub class?**
 
 - Yes.
