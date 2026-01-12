@@ -6006,3 +6006,253 @@ executor.shutdown();
 - **Queueing**: If the core threads are busy, the task is stored in a Blocking Queue.
 - **Max Pool Check**: If the queue is full and threads are below the "maximum" limit, a new thread is created.
 - **Rejection**: If the queue is full and max threads are reached, the `RejectedExecutionHandler` is triggered.
+
+
+<br><br>
+**Explain different ways of creating Executor Services.**
+
+In Java, the Executors utility class (found in java.util.concurrent) provides factory methods to create various types of ExecutorService implementations. These methods pre-configure the underlying ThreadPoolExecutor class for different use cases.
+
+1. #### SingleThreadExecutor
+    - It creates a pool with exactly one worker thread and an unbounded queue.
+    - Tasks are executed sequentially in the order they are submitted. If the thread dies due to failure, it is replaced by a new one.
+    - It uses a `corePoolSize` of 1 and a `maximumPoolSize` of 1.
+    ```java
+    // Logic: Process one task at a time
+    ExecutorService executorService1 = Executors.newSingleThreadExecutor();
+    ```
+
+2. #### FixedThreadPool
+    - It creates a pool with a fixed number of threads.
+    - If all threads are busy, new tasks wait in a `LinkedBlockingQueue`. The number of threads stays constant throughout the life of the pool.
+    - It sets both `corePoolSize` and `maximumPoolSize` to the provided integer.
+    ```java
+    // Logic: Process up to 10 tasks concurrently
+    ExecutorService executorService2 = Executors.newFixedThreadPool(10);
+    ```
+
+3. #### ScheduledThreadPool
+    - It creates a thread pool that can schedule tasks to run after a specific delay or to execute periodically.
+    - It uses a specialized `DelayedWorkQueue` to manage task timing.
+    - It returns an instance of `ScheduledThreadPoolExecutor`, which is a subclass of `ThreadPoolExecutor`.
+    ```java
+    // Logic: Execute tasks periodically or with a delay
+    ExecutorService executorService3 = Executors.newScheduledThreadPool(10);
+    ```
+
+<br><br>
+**How do you check whether an ExecutionService task executed successfully?**
+
+To check the status of a task in Java, you use the `java.util.concurrent.Future` (Interface). When you submit a task to a `java.util.concurrent.ExecutorService` (Interface), it returns a Future object that acts as a placeholder for the result.
+
+1. #### Using the `get()` Method
+    - The `get()` method blocks the calling thread (e.g., the Main thread) and waits for the task to complete.
+    - For a `java.lang.Runnable` (Interface), since it has no return value, `future.get()` returns null only after the task finishes successfully.
+    - If the task fails with an exception, `future.get()` throws an `java.util.concurrent.ExecutionException` (Class).
+    ```java
+    // Logic: Submitting a Runnable task
+    Future<?> future = executorService1.submit(new Runnable() {
+        public void run() {
+            System.out.println("Processing Task...");
+        }
+    });
+
+    try {
+        // Blocks until the task is done
+        Object result = future.get(); 
+        if (result == null) {
+            System.out.println("Task completed successfully.");
+        }
+    } catch (InterruptedException | ExecutionException e) {
+        System.err.println("Task failed!");
+    }
+    ```
+
+2. #### Using `isDone()` for Non-blocking Checks
+    - You can check if a task is finished without stopping your code by using the `isDone()` method.
+    - It returns `true` if the task completed, was cancelled, or terminated due to an exception.
+
+
+<br><br>
+**What is Callable? How do you execute a Callable from ExecutionService?**
+
+In Java, the `java.util.concurrent.Callable` (Interface) is a task-execution interface similar to `java.lang.Runnable` (Interface), but with two major enhancements: it returns a result and can throw checked exceptions.
+
+1. #### Core Characteristics
+    - The `call()` method returns a result of type `<V>`.
+    - Unlike `run()`, the `call()` method is declared with `throws Exception`, allowing you to pass checked exceptions up to the caller.
+    - Both `Callable` and `ExecutorService` belong to `java.util.concurrent`.
+
+2. #### Execution via ExecutorService
+    - To execute a `Callable`, you pass it to the `submit()` method of an `java.util.concurrent.ExecutorService` (Interface). This returns a `java.util.concurrent.Future` (Interface) which will eventually hold the result.
+    ```java
+    // Logic: Creating and executing a Callable that returns a String
+    Future<String> future = executorService1.submit(new Callable<String>() {
+        @Override
+        public String call() throws Exception {
+            // Simulate some processing
+            Thread.sleep(1000);
+            return "Task Completed Successfully";
+        }
+    });
+
+    // Logic: Retrieving the result (blocks until task is finished)
+    try {
+        String result = future.get(); 
+        System.out.println("Result from Callable: " + result);
+    } catch (InterruptedException | ExecutionException e) {
+        e.printStackTrace();
+    }
+    ```
+
+3. #### Comparison: Runnable vs. Callable
+    | Feature       | java.lang.Runnable | java.util.concurrent.Callable |
+    |---------------|--------------------|--------------------------------|
+    | Method Name   | `run()`              | `call()`                         |
+    | Return Type   | `void`               | `V` (Generic Type)               |
+    | Exception     | Cannot throw checked exceptions | Can throw checked `Exception` |
+    | Since         | Java 1.0           | Java 1.5                       |
+
+
+
+<br><br>
+**What is synchronization of threads?**
+
+Synchronization is a mechanism in Java that ensures only one thread can access a shared resource or a block of code at a time. It prevents Race Conditions, where multiple threads attempt to modify the same data simultaneously, leading to data inconsistency.
+
+1. #### The Core Problem: Race Conditions
+    In our example, the `setAndGetSum` method is not Atomic. This means its operations (setting three variables and summing them) can be interrupted.
+    - If Thread A sets `cell1` and then sleeps, Thread B might enter and change `cell1` before Thread A completes its sum.
+    - Thread A ends up returning a sum that contains a mix of values from both threads.
+
+2. #### The Solution: The `synchronized` Keyword
+   By adding the `synchronized` modifier to the method, you create a Mutual Exclusion (Mutex).
+   - When a thread calls a synchronized method, it automatically acquires a "Lock" (or Monitor) on that specific object instance.
+   - Any other thread trying to call any synchronized method on the same instance will be moved to the BLOCKED state.
+   - The lock is released only when the method execution finishes or an exception is thrown.
+   ```java
+   // Logic: Ensuring thread safety via method synchronization
+    public synchronized int setandGetSum(int a1, int a2, int a3) {
+        cell1 = a1;
+        // Even if this thread sleeps, it still holds the lock!
+        sleepForSomeTime(); 
+        cell2 = a2;
+        cell3 = a3;
+        return cell1 + cell2 + cell3;
+    }
+   ```
+
+3. #### Under the Hood: Monitors and Locks
+    Every object in Java (instance of `java.lang.Object` (Class)) has an associated Intrinsic Lock or Monitor.
+    1. Monitor Entry: When a thread hits the `synchronized` keyword, the JVM executes the `monitorenter` instruction.
+    2. If the monitor is free, the thread becomes the owner and sets the lock count to 1.
+    3. If another thread owns the monitor, the current thread is added to an Entry Set and waits.
+    4. When the method finishes, the `monitorexit` instruction is executed, releasing the lock for waiting threads.
+
+
+<br><br>
+**Can you give an example of a synchronized block?**
+
+A synchronized block is a way to perform synchronization on a specific section of code rather than an entire method. This is generally preferred because it minimizes the "locked" time, allowing the application to be more performant.
+
+1. #### Core Concept
+    - Unlike a synchronized method, a block allows you to protect only the specific lines of code that access shared data.
+    - You must explicitly specify which object's monitor (lock) you want to acquire. In your example, `this` refers to the current instance of the `java.lang.Object` (Class).
+    - This is a built-in keyword of the Java language, requiring no specific imports from `java.util`.
+
+2. #### Code Example
+    Consider a scenario where you want to log a message (non-critical) but update a shared counter (critical).
+    ```java
+    public void updateStatistics() {
+        // Non-critical: Multiple threads can execute this at the same time
+        System.out.println("Preparing to update statistics in: " + Thread.currentThread().getName());
+
+        synchronized (this) {
+            // Critical Section: Only one thread can be here at a time
+            this.count++;
+            this.lastUpdated = System.currentTimeMillis();
+        } 
+
+        // Non-critical: Lock is released before this executes
+        System.out.println("Update finished.");
+    }
+    ```
+
+<br><br>
+**Can a static method be synchronized?**
+
+Yes, a static method can be synchronized in Java. However, the locking mechanism differs significantly from instance-level synchronization because static members belong to the class itself, not to any individual object.
+
+1. #### The Lock Object: The Class Lock
+    - **Instance Synchronization**: Locks on the specific object instance (this) of `java.lang.Object` (Class).
+    - **Static Synchronization**: Locks on the `java.lang.Class` (Class) object associated with that specific class.
+    - These are core keywords and types within the `java.lang package`.
+
+2. #### Interaction Between Static and Instance Locks
+    A thread executing a `static synchronized` method does not prevent other threads from executing non-static `synchronized` methods on the same object. This is because they acquire two different locks:
+    - The Class Lock (for the static method).
+    - The Object Lock (for the instance method).
+
+3. #### Code Examples
+    Using the `synchronized` Keyword on Method:
+    ```java
+    public class Statistics {
+        private static int totalCount;
+
+        // Logic: Locks the Statistics.class object
+        public synchronized static int getCount() {
+            return totalCount;
+        }
+    }
+    ```
+    Using a Synchronized Block (Equivalent Logic):
+    ```java
+    public static int getCount2() {
+        // Logic: Explicitly locking on the Class literal
+        synchronized (Statistics.class) {
+            return totalCount;
+        }
+    }
+    ```
+
+4. #### Under the Hood: Class-Level Monitors
+    When a class is loaded into the JVM, a unique instance of `java.lang.Class` is created in the Metaspace/PermGen memory area.
+    - Each Class has its own Monitor.
+    - The `static synchronized` keyword tells the thread to execute the `monitorenter` instruction on that specific Class object monitor.
+    - Even if you have 1,000 instances of a class, there is only one Class Lock.
+
+
+<br><br>
+**What is the use of join method in threads?**
+
+The `join()` method in the `java.lang.Thread` (Class) is used to coordinate the execution order of multiple threads. It allows one thread to pause its execution and wait for another thread to complete before proceeding.
+
+1. #### Core Functionality
+    - When you call `t.join()` from the current thread (e.g., the main thread), the current thread moves into the WAITING state.
+    - The calling thread remains paused until the target thread (`t`) finishes its `run()` method (enters the TERMINATED state).
+    - It is the standard way to ensure that a specific task is finished before the next task begins.
+
+2. #### Code Example: Sequential Dependency
+    In this scenario, thread2 and thread3 run together, but thread4 must wait for thread3 to finish.
+    ```java
+    // Start initial threads
+    thread3.start();
+    thread2.start();
+
+    try {
+        // Logic: The Main thread pauses here until thread3 is DEAD
+        thread3.join(); 
+        
+        System.out.println("Thread3 is completed. Now starting Thread4...");
+        
+        // This starts only after thread3.join() returns
+        thread4.start(); 
+    } catch (InterruptedException e) {
+        // join() throws checked exception if the waiting thread is interrupted
+        e.printStackTrace();
+    }
+    ```
+
+3. #### Overloaded join() with Timeout
+    You can provide a maximum wait time. This prevents the calling thread from waiting forever if the target thread hangs or takes too long.
+    - `thread4.join(2000)`: The caller waits for exactly 2000ms OR until thread4 finishes, whichever happens first.
