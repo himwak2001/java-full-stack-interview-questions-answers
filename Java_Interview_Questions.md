@@ -361,312 +361,6 @@ System.out.println(s1.equals(s2)); // Output: true
 ```
 
 <br><br>
-**What do you mean by data encapsulation?**
-
-- Data Encapsulation is an Object-Oriented concept  of wrapping the data attributes and their behaviors in a single unit.
-- It helps developer to follow modularity approach that is each object is independent of other objects by having its own methods, attributes and functionality.
-- It also contain private properties of an object, hence also serves the purpose of data hiding. Thus, Data hiding is achieved by making the class fields `private` and Encapsulation is achieved by providing public methods (called Getters and Setters) to access and modify the private data.
-
-```java
-public class Student {
-    
-    // 1. Data Hiding: Data is PRIVATE
-    private String name;
-    private int score;
-
-    // Constructor (to set initial values)
-    public Student(String name, int score) {
-        this.name = name;
-        // Uses the controlled setter method
-        setScore(score); 
-    }
-
-    // --- ACCESSORS (Getters) ---
-    // Read-only access to private fields
-    public String getName() {
-        return name;
-    }
-    
-    public int getScore() {
-        return score;
-    }
-}
-```
-
-
-
-
-**Briefly explain the concept of constructor overloading**
-
-- Constructor overloading is the process of creating multiple constructor in the class consisting of the same name but different in parameters.
-- Compiler distinguish this constructor based on number of parameters and their corresponding types.
-
-```java
-public class Hospital {
-    int variable1, variable2;
-    double variable3;
-
-    public Hospital(int doctors, int nurses) {
-        variable1 = doctors;
-        variable2 = nurses;
-    }
-
-    public Hospital(int doctors) {
-        variable1 = doctors;
-    }
-
-    public Hospital(double salaries) {
-        variable3 = salaries;
-    }
-}
-```
-
-Three constructors are defined here but they differ on the basis of parameter type and their numbers.
-
-**Can the main method be Overloaded?**
-Yes, the main method **can be overloaded**. However, the **JVM will only call** the method with the **exact signature** `public static void main(String[] args)` as the program's starting point.
-
-```java
-class Main {
-    public static void main(String args[]) {
-        System.out.println(" Main Method");
-    }
-    public static void main(int[] args){
-        System.out.println("Overloaded Integer array Main Method");
-    }
-    public static void main(char[] args){
-        System.out.println("Overloaded Character array Main Method");
-    }
-    public static void main(double[] args){
-        System.out.println("Overloaded Double array Main Method");
-    }
-    public static void main(float args){
-        System.out.println("Overloaded float Main Method");
-    }
-}
-```
-
-**A single try block and multiple catch blocks can co-exist in a Java Program. Explain.**
-
-Yes, multiple catch blocks can exist but specific approaches should come prior to the general approach because only the first catch block satisfying the catch condition is executed.
-
-```java
-public class MultipleCatch {
-  public static void main(String args[]) {
-    try {
-      int n = 1000, x = 0;
-      int arr[] = new int[n];
-      for (int i = 0; i <= n; i++) {
-        arr[i] = i / x;
-      }
-    } catch (ArrayIndexOutOfBoundsException exception) {
-      System.out.println("1st block = ArrayIndexOutOfBoundsException");
-    } catch (ArithmeticException exception) {
-      System.out.println("2nd block = ArithmeticException");
-    } catch (Exception exception) {
-      System.out.println("3rd block = Exception");
-    }
-  }
-}
-```
-
-Here, the second catch block will be executed because of division by 0 (i / x). In case x was greater than 0 then the first catch block will execute because for loop runs till i = n and array index are till n-1.
-
-**Explain the use of final keyword in variable, method and class.**
-
-In Java, the final keyword is used as defining something as constant /final and represents the non-access modifier.
-
-- **final variable:**
-    - When a variable is declared as final in Java, the value can’t be modified once it has been assigned.
-    - If any value has not been assigned to that variable, then it can be assigned only by the constructor of the class.
-- **final method:**
-    - A method declared as final cannot be overridden by its children's classes.
-    - A constructor cannot be marked as final because whenever a class is inherited, the constructors are not inherited. Hence, marking it final doesn't make sense. Java throws compilation error saying - `modifier final not allowed here`
-- **final class:**
-    - No classes can be inherited from the class declared as final. But that final class can extend other classes for its usage.
-
-**Do final, finally and finalize keywords have the same function?**
-
-1. **Final**:
-    1. The **`final` keyword** is used to make a **class non-inheritable**, a **method non-overridable**, and a **variable value fixed (constant)**
-    
-    ```java
-    final int a=100;
-    a = 0;  // error
-    ```
-    
-2. **Finally**:
-    1. It is the block present in a program where all the codes written inside it get executed irrespective of handling of exceptions.
-    
-    ```java
-    try {
-      int variable = 5;
-    } catch (Exception exception) {
-      System.out.println("Exception occurred");
-    } finally {
-      System.out.println("Execution of finally block");
-    }
-    ```
-    
-3. **Finalize:**
-    1. Prior to the garbage collection of an object, the finalize method is called so that the clean-up activity is implemented.
-    
-    ```java
-    public static void main(String[] args) {
-      String example = new String("InterviewBit");
-      example = null;
-      System.gc(); // Garbage collector called
-    }
-    public void finalize() {
-      // Finalize called
-    }
-    ```
-    
-
-**Is it possible that the ‘finally’ block will not be executed? If yes then list the case.**
-
-Yes. It is possible that the ‘finally’ block will not be executed. The cases are
-
-1. Suppose we use **`System.exit()`** in the above statement.
-2. If there are fatal errors like Stack overflow, Memory access error, etc.
-
-**When can you use super keyword?**
-
-- The super keyword is used to access the hidden fields and overridden method or attributes of the parent class.
-- Following are the cases when this keyword can be used:
-    - Accessing the data members of the parent class when child class is also having the same named data members.
-    - To call the default or parameterized constructor of the parent class inside the child class constructor.
-    - Accessing the parent class method when child classes have overridden method.
-
-```java
-public class Parent {
-    protected int num = 20;
-
-    public Parent() {
-        System.out.println("Parent class default constructor.");
-    }
-
-    public Parent(String str) {
-        System.out.println("Parent class parameterised constructor.");
-    }
-
-    public void foo() {
-        System.out.println("Parent class foo() method");
-    }
-}
-
-public class Child extends Parent {
-    private int num = 30;
-
-    public Child() {
-        //  super(); // super constructor call should always be in the first line
-        super("hello"); // Either call default super() to call default parent constructor OR call parameterised super to call parameterised parent constructor.
-        System.out.println("Child class default constructor.");
-    }
-
-    public void printNum() {
-        System.out.println("Child class num: " + this.num);
-        System.out.println("Parent class num: " + super.num);
-    }
-
-    @Override
-    public void foo() {
-        System.out.println("Child class foo() method");
-        super.foo();
-    }
-}
-
-public class DemoClass {
-    public static void main(String[] args) {
-        Child demoChild = new Child();
-        demoChild.foo();
-        /*
-          This would print -
-          Parent class parameterised constructor.
-          Child class default Constructor
-          Child class foo() method
-          Parent class foo() method
-         */
-    }
-}
-```
-
-**Can the static methods be overloaded?**
-
-Yes! There can be two or more static methods in a class with the same name but differing input parameters.
-
-```java
-public class StaticOverloadDemo {
-
-    // 1. One int
-    public static int multiply(int a) {
-        return a * 10;
-    }
-
-    // 2. Two ints (Overloaded)
-    public static int multiply(int a, int b) {
-        return a * b;
-    }
-
-    // 3. Two doubles (Overloaded)
-    public static double multiply(double a, double b) {
-        return a * b;
-    }
-
-    public static void main(String[] args) {
-        System.out.println(multiply(5));       // Calls #1
-        System.out.println(multiply(5, 4));    // Calls #2
-        System.out.println(multiply(5.0, 4.5)); // Calls #3
-    }
-}
-```
-
-**Why is the main method static in Java?  / What will happen if we don't declare the main as static?**
-
-- The `main` method is `static` so the JVM can call it directly using the class name without creating an object.
-- If it weren’t static, every object would have its own `main` method, which is not acceptable for program execution.
-- Since execution starts from `main`, having it static ensures a single, consistent entry point.
-
-**Can the static methods be overridden?**
-
-- **Static methods cannot be overridden** because they are resolved at **compile-time** using **static binding**, unlike instance methods which use **runtime polymorphism**.
-- Since static methods belong to the **class**, not the object, they are accessed via the class name and don’t participate in inheritance-based dispatch.
-- Defining a static method with the same signature in a subclass results in **method hiding**, not overriding - the method called depends on the **reference type**, not the actual object.
-
-**Difference between static methods, static variables, and static classes in java.**
-
-- **Static Variable:** Shared across all instances; memory allocated once when the class is loaded; accessed using the class name (e.g., `ClassName.count`).
-- **Static Method:** Belongs to the class; called using the class name (e.g., `Math.max()`); cannot access non-static members directly; commonly used for utility or entry-point methods.
-- **Static Class (Nested):** Only nested classes can be static; accessed without creating an instance of the outer class; cannot access non-static members of the outer class; useful for grouping related utility code.
-    
-    ```java
-    public class OuterClass {
-        static class StaticNestedClass {
-            void display() {
-                System.out.println("Hello from static nested class!");
-            }
-        }
-    
-        public static void main(String[] args) {
-            // Creating an object of the static nested class
-            OuterClass.StaticNestedClass nested = new OuterClass.StaticNestedClass();
-            nested.display();
-        }
-    }
-    ```
-    
-
-**What is the main objective of garbage collection?**
-
-- The main objective of garbage collection is to **automatically free memory** by deleting **unreachable or unused objects** during program execution.
-- This helps in **efficient memory management**, but it does **not guarantee** that sufficient memory will always be available for the program to run.
-
-**What is a ClassLoader?**
-
-- **ClassLoader** is a part of the **Java Runtime Environment (JRE)** responsible for **dynamically loading classes and interfaces** into the JVM during program execution.
-- It loads classes **on demand**, meaning only when they’re needed—like loading the `Scanner` class when reading input from the console.
-
-<br><br>
 ### Wrapper Classes
 ---
 **What are Wrapper Classes in Java, and why are they needed?**
@@ -3753,6 +3447,106 @@ class Wall implements Serializable {
 - If you change the value of a static variable after serialization, the deserialized object will still see the updated static value, not the value that existed at serialization time.
 - If you need a static value to be persisted, it must be handled manually (e.g., writing it separately to a file), because Java serialization will never include it.
 
+
+**Explain the use of final keyword in variable, method and class.**
+
+In Java, the final keyword is used as defining something as constant /final and represents the non-access modifier.
+
+- **final variable:**
+    - When a variable is declared as final in Java, the value can’t be modified once it has been assigned.
+    - If any value has not been assigned to that variable, then it can be assigned only by the constructor of the class.
+- **final method:**
+    - A method declared as final cannot be overridden by its children's classes.
+    - A constructor cannot be marked as final because whenever a class is inherited, the constructors are not inherited. Hence, marking it final doesn't make sense. Java throws compilation error saying - `modifier final not allowed here`
+- **final class:**
+    - No classes can be inherited from the class declared as final. But that final class can extend other classes for its usage.
+
+<br><br>
+**Do final, finally and finalize keywords have the same function?**
+
+1. **Final**:
+    1. The **`final` keyword** is used to make a **class non-inheritable**, a **method non-overridable**, and a **variable value fixed (constant)**
+    
+    ```java
+    final int a=100;
+    a = 0;  // error
+    ```
+    
+2. **Finally**:
+    1. It is the block present in a program where all the codes written inside it get executed irrespective of handling of exceptions.
+    
+    ```java
+    try {
+      int variable = 5;
+    } catch (Exception exception) {
+      System.out.println("Exception occurred");
+    } finally {
+      System.out.println("Execution of finally block");
+    }
+    ```
+    
+3. **Finalize:**
+    1. Prior to the garbage collection of an object, the finalize method is called so that the clean-up activity is implemented.
+    
+    ```java
+    public static void main(String[] args) {
+      String example = new String("InterviewBit");
+      example = null;
+      System.gc(); // Garbage collector called
+    }
+    public void finalize() {
+      // Finalize called
+    }
+    ```
+
+<br><br>
+**Is it possible that the ‘finally’ block will not be executed? If yes then list the case.**
+
+Yes. It is possible that the ‘finally’ block will not be executed. The cases are
+
+1. Suppose we use **`System.exit()`** in the above statement.
+2. If there are fatal errors like Stack overflow, Memory access error, etc.
+
+<br><br>
+**Why is the main method static in Java?  / What will happen if we don't declare the main as static?**
+
+- The `main` method is `static` so the JVM can call it directly using the class name without creating an object.
+- If it weren’t static, every object would have its own `main` method, which is not acceptable for program execution.
+- Since execution starts from `main`, having it static ensures a single, consistent entry point.
+
+<br><br>
+**Can the static methods be overridden?**
+
+- **Static methods cannot be overridden** because they are resolved at **compile-time** using **static binding**, unlike instance methods which use **runtime polymorphism**.
+- Since static methods belong to the **class**, not the object, they are accessed via the class name and don’t participate in inheritance-based dispatch.
+- Defining a static method with the same signature in a subclass results in **method hiding**, not overriding - the method called depends on the **reference type**, not the actual object.
+
+
+<br><br>
+**Difference between static methods, static variables, and static classes in java.**
+
+- **Static Variable:** Shared across all instances; memory allocated once when the class is loaded; accessed using the class name (e.g., `ClassName.count`).
+- **Static Method:** Belongs to the class; called using the class name (e.g., `Math.max()`); cannot access non-static members directly; commonly used for utility or entry-point methods.
+- **Static Class (Nested):** Only nested classes can be static; accessed without creating an instance of the outer class; cannot access non-static members of the outer class; useful for grouping related utility code.
+    
+    ```java
+    public class OuterClass {
+        static class StaticNestedClass {
+            void display() {
+                System.out.println("Hello from static nested class!");
+            }
+        }
+    
+        public static void main(String[] args) {
+            // Creating an object of the static nested class
+            OuterClass.StaticNestedClass nested = new OuterClass.StaticNestedClass();
+            nested.display();
+        }
+    }
+    ```
+
+
+
 ### Collections
 
 **Why do we need Collections in Java?**
@@ -6256,3 +6050,203 @@ The `join()` method in the `java.lang.Thread` (Class) is used to coordinate the 
 3. #### Overloaded join() with Timeout
     You can provide a maximum wait time. This prevents the calling thread from waiting forever if the target thread hangs or takes too long.
     - `thread4.join(2000)`: The caller waits for exactly 2000ms OR until thread4 finishes, whichever happens first.
+
+
+<br><br>
+**Describe a few other important methods in Threads?**
+
+The `java.lang.Thread` (Class) provides several static and instance methods that help control thread execution and resource sharing.
+
+1. #### `Thread.yield()` (Static Method)
+    - It is a "hint" to the thread scheduler that the current thread is willing to yield its current use of a processor.
+    - The thread moves from RUNNING to RUNNABLE.
+    - The scheduler is free to ignore this hint. If there are no other threads waiting or if the current thread has the highest priority, the scheduler may immediately move the yielding thread back to the RUNNING state.
+    - Used to prevent a single thread from "hogging" the CPU in a compute-intensive task.
+    ```java
+    // Logic: Suggesting the scheduler to let other threads run
+    Thread.yield();
+    ```
+
+2. #### `Thread.sleep(long millis)` (Static Method)
+    - Causes the currently executing thread to cease execution for the specified number of milliseconds.
+    - The thread moves from RUNNING to TIMED_WAITING.
+    - It does not release any locks the thread currently holds. If a thread sleeps inside a synchronized block, other threads remain blocked.
+    - It throws a checked `java.lang.InterruptedException` (Class), so it must be wrapped in a try-catch block.
+    ```java
+    try {
+            // Logic: Pause execution for 2 seconds
+            Thread.sleep(2000); 
+        } catch (InterruptedException e) {
+            // Logic: Handle if another thread interrupts this sleeping thread
+            Thread.currentThread().interrupt();
+        }
+    ```
+
+3. #### Under the Hood: Internal State Transitions
+    - For `yield()`: The JVM makes a native call to the OS scheduler to move the thread to the end of the "Ready" queue for its priority level.
+    - For `sleep()`: The JVM sets a timer. The OS removes the thread from the CPU and puts it in a sleep queue. Once the timer expires, the OS moves it back to the "Ready" queue (RUNNABLE).
+
+
+<br><br>
+**What is a deadlock?**
+
+A Deadlock is a specific condition in multi-threading where two or more threads are blocked forever, each waiting for a resource held by the other. It is a "cyclic dependency" that results in a total halt of the affected threads.
+
+1. #### The Deadlock Scenario
+    Imagine two resources (Lock A and Lock B) and two threads:
+    - Thread 1 acquires Lock A and then tries to acquire Lock B.
+    - Thread 2 acquires Lock B and then tries to acquire Lock A.
+    - Thread 1 is waiting for Thread 2 to release Lock B, and Thread 2 is waiting for Thread 1 to release Lock A. Neither will ever release their lock.
+
+2. #### Code Example of a Deadlock
+    ```java
+        public class DeadlockExample {
+        public static Object lockA = new Object(); // java.lang.Object (Class)
+        public static Object lockB = new Object();
+
+        public static void main(String[] args) {
+            Thread thread1 = new Thread(() -> {
+                synchronized (lockA) {
+                    System.out.println("Thread 1: Holding lock A...");
+                    try { Thread.sleep(100); } catch (InterruptedException e) {}
+                    System.out.println("Thread 1: Waiting for lock B...");
+                    synchronized (lockB) {
+                        System.out.println("Thread 1: Acquired lock B!");
+                    }
+                }
+            });
+
+            Thread thread2 = new Thread(() -> {
+                synchronized (lockB) {
+                    System.out.println("Thread 2: Holding lock B...");
+                    try { Thread.sleep(100); } catch (InterruptedException e) {}
+                    System.out.println("Thread 2: Waiting for lock A...");
+                    synchronized (lockA) {
+                        System.out.println("Thread 2: Acquired lock A!");
+                    }
+                }
+            });
+
+            thread1.start();
+            thread2.start();
+            }
+        }
+    ```
+
+3. #### Under the Hood: The Four Necessary Conditions
+    For a deadlock to occur, the following four conditions (known as **Coffman Conditions**) must hold true simultaneously:
+    1. **Mutual Exclusion**: At least one resource must be held in a non-sharable mode (only one thread at a time).
+    2. **Hold and Wait**: A thread is holding at least one resource and waiting to acquire additional resources held by others.
+    3. **No Preemption**: Resources cannot be forcibly taken from a thread; they must be released voluntarily.
+    4. **Circular Wait**: A closed chain of threads exists where each thread holds at least one resource needed by the next thread in the chain.
+
+
+<br><br>
+**What are the important methods in java for inter-thread communication?**
+
+Inter-thread communication in Java allows synchronized threads to communicate with each other regarding the status of a shared resource. These methods are defined in the `java.lang.Object` (Class), which means every object in Java has the ability to act as a communication medium.
+
+1. #### `wait()` Method
+    - Tells the current thread to give up the lock and go to sleep until another thread invokes `notify()` or `notifyAll()` for this object.
+    - The thread moves from RUNNING to the WAITING state.
+    - Must be called from within a synchronized context. If not, it throws `java.lang.IllegalMonitorStateException` (Class).
+    - When `wait()` is called, the thread is added to the Wait Set associated with the object’s monitor, and the lock is released so other threads can enter.
+    ```java
+    // Logic: Thread waits until the resource becomes available
+    synchronized (sharedResource) { // java.lang.Object
+        while (sharedResource.isEmpty()) { 
+            try {
+                sharedResource.wait(); // Releases lock and goes to WAITING state
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+        // Logic: Once notified and lock is re-acquired, consume the resource
+        sharedResource.consume();
+    }
+    ```
+
+2. #### `notify()` Method
+    - Wakes up a single thread that is waiting on the object’s monitor.
+    - If multiple threads are waiting, the choice of which thread to wake up is arbitrary (depends on the OS/JVM implementation).
+    - Like `wait()`, it must be called from a synchronized block or method.
+    - The awakened thread cannot proceed until the current thread releases the lock.
+    ```java
+    // Logic: Thread updates status and signals one waiting thread
+    synchronized (sharedResource) {
+        sharedResource.addContent();
+        sharedResource.notify(); // Wakes up ONE thread from the Wait Set
+    } // Lock is actually released here
+    ```
+
+
+3. #### `notifyAll()` Method
+    - Wakes up all threads that are currently waiting on the object’s monitor.
+    - All awakened threads will compete for the lock. The one that acquires the lock proceeds, while others move back to the BLOCKED state.
+    - This is generally safer than `notify()` when multiple threads are waiting for different conditions.
+    ```java
+    // Logic: Thread signals ALL waiting threads that the state has changed
+    synchronized (sharedResource) {
+        sharedResource.setAvailable(true);
+        sharedResource.notifyAll(); // Wakes up ALL threads to compete for the lock
+    }
+    ```
+
+<br><br>
+**Can you write a synchronized program with wait and notify methods?**
+```java
+package com.rithus.threads;
+
+class Calculator extends Thread {
+    long sumUptoMillion;
+    long sumUptoTenMillion;
+
+    @Override
+    public void run() {
+        // Logic: Synchronize on the current thread object instance
+        synchronized (this) {
+            calculateSumUptoMillion();
+            // Logic: Signal the waiting thread (main) that million sum is ready
+            notify(); 
+        }
+        // This runs after the synchronized block, so main thread is already awake
+        calculateSumUptoTenMillion();
+    }
+
+    private void calculateSumUptoMillion() {
+        for (int i = 0; i < 1000000; i++) {
+            sumUptoMillion += i;
+        }
+        System.out.println("Million done");
+    }
+
+    private void calculateSumUptoTenMillion() {
+        for (int i = 0; i < 10000000; i++) {
+            sumUptoTenMillion += i;
+        }
+        System.out.println("Ten Million done");
+    }
+}
+
+public class ThreadWaitAndNotify {
+    public static void main(String[] args) throws InterruptedException {
+        Calculator thread = new Calculator();
+        
+        // Logic: Main thread must own the monitor of 'thread' to call wait()
+        synchronized(thread) {
+            thread.start();
+            // Logic: Main thread releases lock and enters WAITING state
+            thread.wait(); 
+        }
+        
+        // This executes only after notify() is called in the Calculator thread
+        System.out.println("Result: " + thread.sumUptoMillion);
+    }
+}
+```
+
+- **Monitor Acquisition**: The `main` thread enters the `synchronized(thread)` block, acquiring the lock of the `Calculator` object.
+- **State Transition (wait)**: When `thread.wait()` is called, the `main` thread is moved to the Wait Set of the `Calculator` object monitor. It releases the lock.
+- **Background Execution:** The Calculator thread starts. It enters `synchronized(this)`, acquiring the now-available lock.
+- **Signaling (notify)**: After calculating the first million, it calls `notify()`. The JVM moves the `main` thread from the Wait Set back to the Entry Set (Blocked state).
+- **Lock Re-acquisition**: Once the `Calculator` thread exits its `synchronized` block, the main thread re-acquires the lock and moves to the Runnable/Running state.
