@@ -1,6 +1,6 @@
 # Core Java Interview Q&A
 
-### Java Platform
+## Java Platform
 
 **What is Java ?**
 
@@ -193,8 +193,7 @@ using a process called Garbage Collection.
 ![image.png](image%202.png)
 
 <br><br>
-### Strings
----
+## Strings
 
 **What is Java String Pool?**
 
@@ -361,8 +360,8 @@ System.out.println(s1.equals(s2)); // Output: true
 ```
 
 <br><br>
-### Wrapper Classes
----
+## Wrapper Classes
+
 **What are Wrapper Classes in Java, and why are they needed?**
 
 Wrapper classes in Java are object representations of primitive data types. Java provides 8 built-in wrapper classes: `Byte`, `Short`, `Integer`, `Long`, `Float`, `Double`, `Character`, and `Boolean`.
@@ -548,8 +547,8 @@ There are two types of Casting
     
 
 <br><br>
-### Object Oriented Programming Basics
----
+## Object Oriented Programming Basics
+
 ```java
 package com.rithus;
 public class CricketScorer {
@@ -1324,8 +1323,8 @@ public void method() {
     
     ```
     
-
-### Advanced Object Oriented Concepts
+<br><br>
+## Advanced Object Oriented Concepts
 
 **What is Polymorphism?**
 
@@ -1892,8 +1891,8 @@ Anonymous classes are commonly used with:
     }
     ```
     
-
-### Modifiers
+<br><br>
+## Modifiers
 
 **What is default class modifier?**
 
@@ -2078,7 +2077,8 @@ Anonymous classes are commonly used with:
     ```
     
 
-### Exception handling
+<br><br>
+## Exception handling
 
 **Why is Exception handling important ?**
 
@@ -2740,7 +2740,8 @@ Java automatically calls resource.close()
 Continue execution
 ```
 
-### Miscellaneous Topics
+<br><br>
+## Miscellaneous Topics
 
 **What are the default values in an array?**
 
@@ -3546,8 +3547,8 @@ Yes. It is possible that the ‘finally’ block will not be executed. The cases
     ```
 
 
-
-### Collections
+<br><br>
+## Collections
 
 **Why do we need Collections in Java?**
 
@@ -4562,7 +4563,8 @@ sort()        :[A, B, C]
 reverseOrder():[C, B, A]
 ```
 
-### Advanced Collections
+<br><br>
+## Advanced Collections
 
 **What is the difference between synchronized and concurrent collections in Java?**
 
@@ -5021,7 +5023,7 @@ Double e = doSomething(d);    // Works with Double
 ```
 
 <br><br>
-### Functional Programming - Lamdba Expressions and Streams
+## Functional Programming - Lamdba Expressions and Streams
 
 **What is functional programming?**
 
@@ -5578,8 +5580,7 @@ print.accept("Sachin", 45);
 
 
 <br><br>
-### Multi-threading
----
+## Multi-threading
 
 **What is the need for Threads in Java?**
 
@@ -6250,3 +6251,145 @@ public class ThreadWaitAndNotify {
 - **Background Execution:** The Calculator thread starts. It enters `synchronized(this)`, acquiring the now-available lock.
 - **Signaling (notify)**: After calculating the first million, it calls `notify()`. The JVM moves the `main` thread from the Wait Set back to the Entry Set (Blocked state).
 - **Lock Re-acquisition**: Once the `Calculator` thread exits its `synchronized` block, the main thread re-acquires the lock and moves to the Runnable/Running state.
+
+
+<br><br>
+## Java 11 Features
+
+**What is the "Launch Single-File Source-Code Programs" feature?**
+- This feature (JEP 330) allows us to run a Java source file directly without explicitly compiling it using `javac`.
+- We can execute a file like `HelloWorld.java` simply by typing java `HelloWorld.java` in the terminal.
+- The JVM compiles the code in memory and then executes it. It does not produce a `.class` file on the disk.
+- This only works if the program is contained within a single source file.
+    ```bash
+    # Traditional way
+    javac MyScript.java
+    java MyScript
+
+    # Java 11 way
+    java MyScript.java
+    ```
+
+<br><br>
+**How was the var keyword enhanced in Java 11?**
+- Java 11 allowed the use of `var` in Lambda Parameters.
+- This was added to allow developers to apply annotations to lambda parameters without having to specify the full manifest type.
+- Part of `java.lang` (implicitly).
+    ```java
+    // Java 11 allows var in lambdas
+    (var a, var b) -> a + b
+
+    // Useful for adding annotations
+    (@Nonnull var x, @Nullable var y) -> x.process(y)
+    ```
+
+<br><br>
+**More information regarding `var`**
+- Introduced in **Java 10**, it allows the compiler to derive the type of a local variable from its assigned value.
+- Java stays statically typed; once the type is set during compilation, it cannot change. There is no performance cost at runtime.
+- It can only be used for local variables inside methods. You cannot use it for class fields, method parameters, or return types.
+- You must provide a value at declaration (e.g., `var x = 5;`). You cannot declare it empty (`var x;`) or set it to `null`.
+- Use it when the type is clear from the assignment (like `new ArrayList()`) to reduce boilerplate and improve readability.
+- correct way to use
+    ```java
+    // Logic: Correct usage
+    var message = "Hello Java";      // Derived as String
+    var count = 100;                 // Derived as int
+    var list = new ArrayList<Integer>(); // Derived as ArrayList<Integer>
+
+    for (var i = 0; i < 5; i++) {    // Derived as int in a loop
+        System.out.println(i);
+    }
+    ```
+- how not to use
+    ```java
+    // Logic: Incorrect usage
+    var x;             // ERROR: No value to derive type from
+    var y = null;      // ERROR: null has no specific type
+    var price = 9.99; 
+    price = "Free";    // ERROR: Derived as double, cannot change to String
+
+    // var name;       // ERROR: Cannot use as a Class Field (instance variable)
+    ```
+
+<br><br>
+**What are the new methods added to the `java.lang.String` (Class)**
+
+Java 11 introduced several utility methods to handle common string manipulations:
+- `isBlank()`: Returns `true` if the string is empty or contains only white space.
+- `lines()`: Returns a `java.util.stream.Stream` (Interface) of lines extracted from the string.
+- `strip()`: Removes white space from both ends (Unicode-aware, unlike `trim()`)
+- `stripLeading()` / `stripTrailing()`: Removes whitespace only at the start or end.
+- `repeat(int n)`: Returns a string concatenated `n` times.
+    ```java
+    String text = "  Java  ";
+    System.out.println(text.strip()); // "Java"
+    System.out.println(" \n ".isBlank()); // true
+    System.out.println("Hi".repeat(3)); // "HiHiHi"
+    ```
+
+<br><br>
+**What is the new HTTP Client API?**
+- Introduced as an experimental feature in Java 9, the `java.net.http.HttpClient` (Class) became a standard feature in Java 11.
+- It replaces the old, clunky `HttpURLConnection`.
+- It supports HTTP/2 and WebSocket natively. It also supports both synchronous and asynchronous requests using `java.util.concurrent.CompletableFuture` (Class).
+    ```java
+    HttpClient client = HttpClient.newHttpClient();
+    HttpRequest request = HttpRequest.newBuilder()
+        .uri(URI.create("https://google.com"))
+        .build();
+
+    // Asynchronous call
+    client.sendAsync(request, HttpResponse.BodyHandlers.ofString())
+        .thenApply(HttpResponse::body)
+        .thenAccept(System.out::println);
+    ```
+
+
+<br><br>
+**What are the changes in the `java.util.Collection` (Interface)?**
+- `toArray(IntFunction)` was added.
+- This makes it much easier to convert a collection into an array of the correct type.
+    ```java
+    List<String> list = List.of("A", "B");
+    // Java 11 syntax
+    String[] array = list.toArray(String[]::new);
+    ```
+
+<br><br>
+**What is the "Nest-Based Access Control"?**
+- This is an internal JVM change (JEP 181) that simplifies access to private members between nested classes (inner and outer classes).
+- Before Java 11, the compiler generated "bridge methods" to allow an inner class to access a private field of an outer class. Now, the JVM has a concept of "Nests," allowing direct access, which improves performance and reduces the size of the bytecode.
+    ```java
+    public class Outer {
+        private String secret = "Top Secret Information";
+
+        public class Inner {
+            public void revealSecret() {
+                // This access to a private field of the outer class 
+                // is what "Nests" now handle directly.
+                System.out.println(secret);
+            }
+        }
+    }
+    ```
+
+<br><br>
+**What is the Epsilon Garbage Collector?**
+- `Epsilon GC` is a "No-Op" (No Operation) garbage collector.
+- It handles memory allocation but never reclaims it. It is used for performance testing, memory-sensitive applications that handle their own memory, or extremely short-lived jobs where GC overhead is unwanted.
+- Example
+    - Standard GC: Acts like a reusable glass; it pauses the app to "wash" (clean) memory so it can be used again.
+    - Epsilon GC: Acts like disposable cups; it never pauses to clean, it just keeps grabbing new memory for every task.
+    - The Result: Because it never cleans, Epsilon is faster but will crash (OutOfMemory) the moment the "table" (Heap) is full.
+
+
+<br><br>
+**What is the ZGC (Z Garbage Collector)?**
+- An experimental low-latency garbage collector (JEP 333).
+- It is designed to handle heap sizes from a few hundred megabytes to multi-terabytes with pause times that do not exceed 10ms.
+- It performs all expensive work concurrently, without stopping the execution of application threads.
+- Example:
+    - Standard GC (The Roadblock): To clean the "road" (memory), it stops all "traffic" (your code). The larger the road, the longer the traffic jam.
+    - ZGC (The Street Sweeper): A cleaning truck moves alongside the traffic. Your code keeps driving while the cleaning happens in the background.
+    - The Result: You only experience tiny "red lights" (pauses under 10ms), regardless of how huge the road is.
