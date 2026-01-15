@@ -6393,3 +6393,217 @@ Java 11 introduced several utility methods to handle common string manipulations
     - Standard GC (The Roadblock): To clean the "road" (memory), it stops all "traffic" (your code). The larger the road, the longer the traffic jam.
     - ZGC (The Street Sweeper): A cleaning truck moves alongside the traffic. Your code keeps driving while the cleaning happens in the background.
     - The Result: You only experience tiny "red lights" (pauses under 10ms), regardless of how huge the road is.
+
+
+<br><br>
+## Java 17 Features
+
+**What are Sealed Classes and Interfaces?**
+- `sealed` is a modifier that allows a class or interface to restrict which other classes may extend or implement it.
+- It provides a way to define a restricted class hierarchy, which is useful for domain modeling and increasing security.
+- It consists:
+    - `sealed`: Declares a class that restricts its inheritance.
+    - `permits`: Lists the specific subclasses allowed to extend the sealed class.
+    - `non-sealed`: Opens a subclass back up so any other class can extend it.
+- Part of `java.lang` (Class).
+    ```java
+    // Logic: Only Circle and Square can extend Shape
+    public sealed class Shape permits Circle, Square {}
+
+    // Circle is final (no more subclasses)
+    public final class Circle extends Shape {}
+
+    // Square is non-sealed (anyone can now extend Square)
+    public non-sealed class Square extends Shape {}
+    ```
+
+
+<br><br>
+**What are Records in Java 17?**
+- A `record` (Class) is a special kind of class intended to hold immutable data.
+- A Record is a concise class that makes data read-only by automatically marking all fields as final and providing no setter methods, ensuring the data cannot be changed after it's created.
+- The compiler automatically generates the constructor, getter methods, `toString()`, `equals()`, and `hashCode()`.
+- Records are implicitly `final` and extend `java.lang.Record` (Class). They cannot extend any other class.
+    ```java
+    // Logic: One line replaces a whole POJO boilerplate
+    public record User(Long id, String name) {}
+
+    // Usage
+    User user = new User(1L, "Gemini");
+    System.out.println(user.name()); // No 'getName()', just the component name
+    ```
+
+<br><br>
+**Explain Pattern Matching for `instanceof`**
+- It removes the need for explicit casting after checking a type with `instanceof`.
+- It combines the type check and the variable declaration into a single step.
+    ```java
+    // Old Way
+    if (obj instanceof String) {
+        String s = (String) obj;
+        System.out.println(s.length());
+    }
+
+    // Java 17 Way
+    if (obj instanceof String s) {
+        // 's' is already cast and ready to use here
+        System.out.println(s.length());
+    }
+    ```
+
+
+<br><br>
+**What is Pattern Matching for `switch` (Preview in 17)?**
+- Allows the `switch` expression to work with types (patterns) rather than just values.
+- It works perfectly with Sealed Classes to ensure all possible subtypes are covered.
+    ```java
+    static String formatter(Object obj) {
+        return switch (obj) {
+            case Integer i -> String.format("int %d", i);
+            case Long l    -> String.format("long %d", l);
+            case Double d  -> String.format("double %f", d);
+            case String s  -> String.format("String %s", s);
+            default        -> obj.toString();
+        };
+    }
+    ```
+- Example with sealed classes
+    ```java
+    // 1. Define the Sealed Hierarchy
+    sealed interface Payment permits Cash, CreditCard, Crypto {}
+
+    final record Cash(double amount) implements Payment {}
+    final record CreditCard(String cardNumber, double amount) implements Payment {}
+    final record Crypto(String walletAddress, double amount) implements Payment {}
+
+    public class PaymentProcessor {
+        public static String process(Payment payment) {
+            // 2. Use Pattern Matching for switch
+            return switch (payment) {
+                case Cash c       -> "Processing cash: $" + c.amount();
+                case CreditCard cc -> "Charging card ending in " + cc.cardNumber().substring(12);
+                case Crypto crypto -> "Verifying blockchain for $" + crypto.amount();
+                // No default needed! The compiler knows these are the only three possibilities.
+            };
+        }
+    }
+    ```
+
+
+<br><br>
+**What are Text Blocks?**
+- Text Blocks are multi-line string literals (e.g., in Java) defined using triple quotes (`"""`) that reduce the need for escape sequences and automatically normalize indentation by removing incidental whitespace.
+- The compiler automatically handles indentation based on the position of the closing triple quotes.
+    ```java
+    String json = """
+              {
+                "name": "Java 17",
+                "status": "LTS"
+              }
+              """;
+    ```
+
+
+<br><br>
+**What is the New Floating-Point Semantics (`strictfp`) change?**
+- In Java 17, floating-point operations are now consistently "strict" by default meaning we don't need to add `strictfp` to maintain same floating-point results.
+- The keyword `strictfp` is now obsolete and has no effect. This ensures the same floating-point results across all platforms (x86, ARM, etc.) without requiring special modifiers.
+- In older versions of Java, you had to mark a class or method like this:
+    ```java
+    // Logic: Pre-Java 17 way to ensure platform consistency
+    public strictfp class ScienceCalculator {
+        public double calculateOrbit(double velocity) {
+            return velocity * 0.12345678912345; 
+        }
+    }
+    ```
+- In Java 17 and later, you just write normal code:
+    ```java
+    // Logic: Java 17+ (strictfp is now redundant/ignored)
+    public class ScienceCalculator {
+        public double calculateOrbit(double velocity) {
+            // This will now produce the exact same bit-for-bit result 
+            // on a Mac, Windows, or Linux machine by default.
+            return velocity * 0.12345678912345; 
+        }
+    }
+    ```
+
+
+<br><br>
+## Java 21 Features (LTS)
+
+**What are Virtual Threads?**
+- Virtual threads (JEP 444) are lightweight threads that significantly reduce the effort of writing, maintaining, and observing high-throughput, concurrent applications.
+- Traditional platform threads map 1:1 to OS threads, which are expensive and limited in number.
+- Virtual threads are managed by the JVM, not the OS. You can run millions of them on a handful of OS threads.
+- Part of `java.lang.Thread` (Class).
+    ```java
+    // Logic: Creating a Virtual Thread
+    Thread.startVirtualThread(() -> {
+        System.out.println("Running in a virtual thread!");
+    });
+
+    // Using an ExecutorService for Virtual Threads
+    try (var executor = Executors.newVirtualThreadPerTaskExecutor()) {
+        executor.submit(() -> "Task executed");
+    }
+    ```
+- **Real World Examples**:
+    - **Traditional Threads (Old)**: Like hiring a dedicated personal waiter for every customer; if the customer stops to think (waits for a database/API), the waiter stands idle and can't help anyone else.
+    - **Virtual Threads (Java 21)**: Like a smart service system where thousands of "virtual waiters" handle customers, but they only use a "real chef" (OS thread) when they are actually placing an order or doing work.
+    - **The Scaling Factor**: Because "virtual waiters" don't take up space or stand idle, you can serve millions of customers using just a few real chefs, making your application incredibly fast and efficient without needing more memory.
+
+
+
+<br><br>
+**What are Sequenced Collections?**
+- A new set of interfaces (JEP 431) that represent collections with a defined encounter order (if you iterate through the collection twice, the elements will appear in the same predictable sequence both times.).
+- It adds `java.util.SequencedCollection` (Interface), `java.util.SequencedSet`, and `java.util.SequencedMap`.
+- Provides uniform methods like `addFirst()`, `addLast()`, `getFirst()`, `getLast()`, and `reversed()` i.e., regardless of the class, you use the exact same method name.
+    ```java
+    List<String> list = new ArrayList<>(List.of("B", "C"));
+    list.addFirst("A"); // Logic: uniform method across List, Deque, Set
+    list.addLast("D");
+    System.out.println(list.reversed()); // [D, C, B, A]
+    ```
+
+
+<br><br>
+**Explain Record Patterns.**
+- Extends pattern matching to deconstruct record values.
+- Instead of accessing record components via accessor methods, you can "unpack" the record directly in an `instanceof` check or `switch` case.
+- Part of `java.lang` (Class).
+    ```java
+    public record Point(int x, int y) {}
+
+    // Logic: Deconstructing the record in one go
+    if (obj instanceof Point(int x, int y)) {
+        System.out.println("Sum is: " + (x + y));
+    }
+    ```
+
+<br><br>
+**What is Pattern Matching for switch (Finalized)?**
+- Finalized in Java 21.
+- It allows `switch` to test patterns, check for `null` cases, and use "Guards" (the `when` clause) to refine logic.
+    ```java
+    static String test(Object obj) {
+        return switch (obj) {
+            case null -> "It's null";
+            case Integer i -> "Integer: " + i;
+            case String s when s.length() > 5 -> "Long String";
+            case String s -> "Short String";
+            default -> "Unknown";
+        };
+    }
+    ```
+
+
+<br><br>
+**Under the Hood: Virtual Thread Scheduling**
+
+Virtual threads use a "Carrier Thread" (a platform thread) to run. When a virtual thread performs a blocking I/O operation (like a database call):
+- The JVM "unmounts" the virtual thread from the carrier thread.
+- The carrier thread becomes free to run other virtual threads.
+- Once the I/O is done, the JVM "remounts" the virtual thread onto an available carrier thread to continue.
