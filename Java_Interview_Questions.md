@@ -900,23 +900,23 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     //Object is super class of all java classes
     Object object = new Hero();
     public class Actor {
-    		public void act(){
-    				System.out.println("Act");
-    		};
+        public void act(){
+                System.out.println("Act");
+        };
     }
     
     //IS-A relationship. Hero is-a Actor
     public class Hero extends Actor {
-    		public void fight(){
-    				System.out.println("fight");
-    		};
+        public void fight(){
+                System.out.println("fight");
+        };
     }
     
     //IS-A relationship. Comedian is-a Actor
     public class Comedian extends Actor {
-    		public void performComedy(){
-    				System.out.println("Comedy");
-    		};
+        public void performComedy(){
+                System.out.println("Comedy");
+        };
     }
     
     Actor actor1 = new Comedian();
@@ -924,6 +924,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **Is Multiple Inheritance allowed in Java?**
 
 - Multiple Inheritance results in a number of complexities. Java does not support Multiple Inheritance through classes but support through interface.
@@ -944,10 +945,11 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **What is an interface ?**
 
 - An interface in Java is a blueprint of a class that contains public abstract methods and public static final constants.
-- It defines a set of rules or behaviors that a class must follow, describing what a class should do but not **how** it should do it.
+- It defines a set of rules or behaviors that a implementing class must follow, describing what a class should do but not **how** it should do it.
 - A class implements an interface using the `implements` keyword and must provide implementations for all of its abstract methods.
 - Interfaces are mainly used to achieve abstraction and multiple inheritance in Java.
 - Syntax:
@@ -979,6 +981,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **Can you explain a few tricky things about interfaces?**
 
 - Variables in an interface are always public, static, final. Variables in an interface cannot be declared as private.
@@ -1011,6 +1014,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **Can you extend an interface?**
 
 - An interface can extend another interface. Consider the example below:
@@ -1034,6 +1038,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **Can a class extend multiple interfaces?**
 
 - A class can implement multiple interfaces.
@@ -1043,24 +1048,25 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     
     ```java
     interface ExampleInterface2 {
-    		void method2();
+    	void method2();
     }
     
     class SampleImpl implements ExampleInterface1,ExampleInterface2{
-    		/* A class should implement all the methods in an interface.
-    		If either of method1 or method2 is commented, it would
-    		result in compilation error.
-    		*/
-    		public void method2() {
-    				System.out.println("Sample Implementation for Method2");
-    		}
-    		public void method1() {
-    				System.out.println("Sample Implementation for Method1");
-    		}
+        /* A class should implement all the methods in an interface.
+        If either of method1 or method2 is commented, it would
+        result in compilation error.
+        */
+        public void method2() {
+                System.out.println("Sample Implementation for Method2");
+        }
+        public void method1() {
+                System.out.println("Sample Implementation for Method1");
+        }
     }
     ```
     
 
+<br><br>
 **What is Abstract class?**
 
 - An **abstract class** in Java is a class declared with the `abstract` keyword and **cannot be instantiated directly**, meaning you cannot create its object.
@@ -1088,6 +1094,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **When Abstract methods are used?**
 
 - An abstract class is used when you want to share common, already-implemented functionality among all subclasses.
@@ -1128,9 +1135,10 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **What are the differences between abstract class and interface?**
 
-| **Basis** | **Abstract Class** | **Interface** |
+| Basis | Abstract Class | Interface |
 | --- | --- | --- |
 | **Method Type** | Can contain both **abstract** and **non-abstract (concrete)** methods. | Contains only **abstract methods** (till Java 7). From Java 8 onward, can also have **default** and **static** methods. |
 | **Keyword Used** | Declared using the **`abstract`** keyword. | Declared using the **`interface`** keyword. |
@@ -1140,6 +1148,8 @@ Method overriding in Java is a feature that allows a **child class to provide a 
 | **Final Methods** | Can contain **final methods**, which cannot be overridden. | **Cannot** have final methods because all methods are abstract by nature. |
 | **Use Case** | Used when classes share **common behavior** or **partial implementation**. | Used to define a **contract** or **set of rules** that implementing classes must follow. |
 
+
+<br><br>
 **What is the constructor?**
 
 - Constructor is a special method that is used to initialize objects.
@@ -1165,6 +1175,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **What is a Default Constructor ?**
 
 - A default constructor is a no-argument constructor automatically provided by the compiler.
