@@ -1195,6 +1195,7 @@ Method overriding in Java is a feature that allows a **child class to provide a 
     ```
     
 
+<br><br>
 **Will this code compile?**
 
 ```java
@@ -1219,6 +1220,8 @@ class Animal {
 - Since a no-argument constructor is explicitly defined, the code `new Animal()` in `main` can correctly call it.
 - There are no syntax errors, and all variables are properly initialized.
 
+
+<br><br>
 **How do you call a Super Class Constructor from a Constructor?**
 
 - A subclass constructor can invoke its superclass constructor using **super()**.
@@ -1233,6 +1236,8 @@ class Animal {
     ```
     
 
+
+<br><br>
 **Will this code compile?**
 
 ```java
@@ -1244,6 +1249,8 @@ public Animal() {
 
 No,  the code will **not compile** because **super() must be the first statement** in any constructor. No code is allowed before a call to `super()` or `this()`.
 
+
+<br><br>
 **What is the use of this()?**
 
 - `this()` is used inside a constructor to call **another constructor of the same class**.
@@ -1263,6 +1270,7 @@ No,  the code will **not compile** because **super() must be the first statement
     Here, the no-argument constructor calls the one-argument constructor, passing `"Default Name"`.
     
 
+<br><br>
 **Can a constructor be called directly from a method?**
 
 No, a constructor **cannot** be called directly from a regular method. It can only be invoked:
@@ -1285,6 +1293,8 @@ class Animal {
 }
 ```
 
+
+<br><br>
 **The correct way to create an object inside a method is:**
 
 ```java
@@ -1293,6 +1303,8 @@ public void method() {
 }
 ```
 
+
+<br><br>
 **Is a super class constructor called even when there is no explicit call from a sub class constructor?**
 
 - If a subclass constructor does **not** explicitly call a superclass constructor using `super(...)`, then the compiler automatically inserts a call to the **no-argument constructor** of the superclass.
@@ -1397,6 +1409,8 @@ public void method() {
     This is because the reference type (`Animal`) does not have a `run()` method.
     
 
+
+<br><br>
 **What is the use of `instanceof` Operator in Java?**
 
 - The `instanceof` operator checks whether an object is an **instance of a specific class**, **subclass**, or **interface**.
@@ -1455,6 +1469,7 @@ public void method() {
     ```
     
 
+<br><br>
 **What is Coupling?**
 
 - **Coupling** refers to how much one class depends on another class.
@@ -1540,6 +1555,8 @@ public void method() {
     - Internal changes in `ShoppingCartEntry` or `CartContents` **won’t affect `Order`**.
     - This design has **low coupling** and is easier to maintain.
 
+
+<br><br>
 **What is Cohesion?**
 
 - **Cohesion** measures how closely related and focused the responsibilities of a class are.
@@ -1600,6 +1617,9 @@ public void method() {
     - Changes in one process don’t affect other processes.
     - The main class (`DownloadAndStore`) simply coordinates the workflow.
 
+
+
+<br><br>
 **What is Encapsulation ?**
 
 - **Encapsulation** means **hiding the internal details** (implementation) of a class and exposing only a **controlled interface**.
@@ -1675,6 +1695,8 @@ public void method() {
     - Higher encapsulation = better maintainability, safety, and flexibility.
     - Encapsulation hides complexity and exposes only necessary behavior.
 
+
+<br><br>
 **What is an Inner Class ?**
 
 - An **Inner Class** is a class defined **inside another class**.
@@ -1776,6 +1798,7 @@ public void method() {
             ```
             
 
+<br><br>
 **Are classes allowed inside interfaces?**
 
 **Yes.**
@@ -1852,8 +1875,9 @@ A class inside an interface is **automatically a static nested class**.
         }
     }
     ```
-    
 
+
+<br><br>
 **What is an Anonymous class ?**
 
 An **anonymous class** is a **class without a name**, created **on the fly**, usually when:
@@ -1943,6 +1967,7 @@ Anonymous classes are commonly used with:
         ```
         
 
+<br><br>
 **What is private access modifier?**
 
 - Private variables and methods can be accessed only in the class they are declared.
@@ -1966,16 +1991,21 @@ Anonymous classes are commonly used with:
     ```
     
 
+<br><br>
 **What is protected access modifier ?**
 
 - `protected` members are accessible to **all classes in the same package** (just like *default/package-private* members).
 - When accessed from a **different package**, a protected member can be accessed **only through inheritance**, not through a superclass object.
 
+
+<br><br>
 **What is public access modifier?**
 
 - Public variables and methods can be accessed from every other Java classes.
 - Public variables and methods from SuperClass are all available directly in the SubClass
 
+
+<br><br>
 **What is the use of a final modifier on a class?**
 
 - A class declared with the `final` modifier **cannot be extended** (no subclass can be created).
@@ -1999,6 +2029,7 @@ Anonymous classes are commonly used with:
     ```
     
 
+<br><br>
 **What is the use of a final modifier on a method?**
 
 - A method declared with the `final` modifier **cannot be overridden** in any subclass.
@@ -2023,6 +2054,7 @@ Anonymous classes are commonly used with:
     ```
     
 
+<br><br>
 **What is a Final Variable ?**
 
 - A variable declared with the `final` modifier becomes a **constant**, meaning its value cannot be changed after initialization.
@@ -2037,6 +2069,9 @@ Anonymous classes are commonly used with:
     
 - Final Variable example : java.lang.Math.PI
 
+
+
+<br><br>
 **What is a final argument ?**
 
 - A **final argument** is a method parameter declared with the `final` keyword.
@@ -2053,6 +2088,7 @@ Anonymous classes are commonly used with:
     ```
     
 
+<br><br>
 **What happens when a variable is marked as volatile?**
 
 1. The `volatile` keyword can be applied **only to instance variables**, not to local variables.
@@ -2060,6 +2096,8 @@ Anonymous classes are commonly used with:
 3. This ensures **visibility of changes across threads** - when one thread updates a volatile variable, other threads immediately see the updated value.
 4. Volatile prevents caching of the variable in thread-local memory, reducing certain concurrency issues.
 
+
+<br><br>
 **What is a Static variable ?**
 
 - A **static variable** belongs to the class, not to individual objects.
