@@ -2139,6 +2139,8 @@ Anonymous classes are commonly used with:
 - When writing code, developers should think about **what information would be needed to diagnose failures** and ensure that information is captured when exceptions occur.
 - The logged information should be tied to the **same unique error ID** that was shown to the user, making debugging easier.
 
+
+<br><br>
 **What design pattern is used to implement Exception handling Features in most languages?**
 
 - When a method throws an exception and does not handle it, the exception is automatically **passed to the calling method**.
@@ -2172,6 +2174,8 @@ Anonymous classes are commonly used with:
     ```
     
 
+
+<br><br>
 **What is the need for finally block?**
 
 - The `finally` block is used when some code must run **regardless of whether an exception occurs or not**.
@@ -2258,6 +2262,8 @@ Anonymous classes are commonly used with:
 - The only rare situations where `finally` may not run are JVM crash, `System.exit()`, or hardware failure.
 - Therefore, the `finally` block is ideal for **cleanup tasks** such as closing connections, releasing resources, or resetting states.
 
+
+<br><br>
 **In what scenarios is code in finally not executed?**
 
 - The code inside a `finally` block is **almost always** executed, but there are a few scenarios where it will **not** run.
@@ -2269,6 +2275,8 @@ Anonymous classes are commonly used with:
 - **If the thread executing the finally block is killed abruptly**, the code will not run.
 - **If the program enters an infinite loop or hangs** before reaching finally, it also won’t execute.
 
+
+<br><br>
 **Will finally be executed in the program below?**
 
 ```java
@@ -2292,6 +2300,8 @@ private static void method2() {
 
 Yes. It will be. Finally will be executed even when there is a return statement in try or catch.
 
+
+<br><br>
 **Is try without a catch is allowed?**
 
 - A `try` block **can exist without a `catch` block**, but only if it is followed by a **`finally` block**.
@@ -2328,6 +2338,8 @@ Yes. It will be. Finally will be executed even when there is a return statement 
     
 - This approach is common when cleanup is needed but actual exception handling is done by the calling method.
 
+
+<br><br>
 **Is try without catch and finally allowed?**
 
 - No. Below method would give a Compilation Error!! (End of try block)
@@ -2349,6 +2361,8 @@ Yes. It will be. Finally will be executed even when there is a return statement 
     - *cleaning up resources* regardless of exceptions (`finally`).
 - Without `catch` or `finally`, the `try` serves no purpose, hence the compile-time error.
 
+
+<br><br>
 **Explain the hierarchy of Java Exception Classes**
 
 ```
@@ -2401,6 +2415,8 @@ Yes. It will be. Finally will be executed even when there is a return statement 
     They are usually created in the developer’s own package (e.g., `com.myapp.exceptions`).
     
 
+
+<br><br>
 **What is the difference between Error and Exception?**
 
 | **Error** | **Exception** |
@@ -2412,6 +2428,8 @@ Yes. It will be. Finally will be executed even when there is a return statement 
 | Defined in **java.lang.Error**. | Defined in **java.lang.Exception**. |
 | Examples: **OutOfMemoryError, StackOverflowError**. | Examples: Checked – **IOException, SQLException**; Unchecked – **NullPointerException, ArithmeticException**. |
 
+
+<br><br>
 **How many types of exceptions can occur in a Java program?**
 
 - Java supports **two main types of exceptions: Built-in Exceptions and User-Defined Exceptions**.
@@ -2422,6 +2440,8 @@ Yes. It will be. Finally will be executed even when there is a return statement 
 - **User-Defined Exceptions** are custom exceptions created by extending Exception or RuntimeException to handle application-specific scenarios not covered by built-in exceptions.
 - Examples include: `InvalidAgeException`, `InsufficientBalanceException`, etc.
 
+
+<br><br>
 **What is the difference between Checked Exception and Unchecked Exception?**
 
 | **Checked Exception** | **Unchecked Exception** |
@@ -2432,6 +2452,8 @@ Yes. It will be. Finally will be executed even when there is a return statement 
 | All exceptions **outside `RuntimeException` and `Error`** are checked. | All exceptions under **`RuntimeException`** and **`Error`** are unchecked. |
 | Includes **fully checked exceptions** (e.g., `IOException`, `InterruptedException`) and **partially checked ones** (e.g., `Exception`). | Examples: `NullPointerException`, `ArithmeticException`, `ArrayIndexOutOfBoundsException`, `IllegalArgumentException`. |
 
+
+<br><br>
 **How do you throw an exception from a method?**
 
 1. **Use the `throw` keyword** followed by an exception object.
@@ -2459,7 +2481,6 @@ Yes. It will be. Finally will be executed even when there is a return statement 
     
     ```java
     Exception in thread "main" java.lang.RuntimeException: Currencies don't match
-    
     ```
     
 6. The printed message contains:
@@ -2467,6 +2488,8 @@ Yes. It will be. Finally will be executed even when there is a return statement 
     - **Custom message** → `"Currencies don't match"`
     - **Stack trace** showing where the exception occurred.
 
+
+<br><br>
 **What happens when you throw a Checked Exception from a method?**
 
 - **Checked Exceptions must be declared or handled.**
@@ -2524,7 +2547,9 @@ Yes. It will be. Finally will be executed even when there is a return statement 
     ```
     
 
+<br><br>
 **What are the options you have to eliminate compilation errors when handling checked exceptions?**
+
 A **checked exception** (any exception that extends `Exception` but NOT `RuntimeException`) must be:
 
 Either,
@@ -2585,6 +2610,8 @@ Output:
 Exception Handled in Main
 ```
 
+
+<br><br>
 **How do you create a Custom Exception?**
 
 - **A custom exception is created by defining a new class that extends either `Exception` or `RuntimeException`.**
@@ -2689,6 +2716,8 @@ Exception Handled in Main
     ```
     
 
+
+<br><br>
 **What is the output of the program below?**
 
 - **A `try` block can have multiple `catch` blocks, but their order must go from *most specific* to *most general*.**
@@ -2734,6 +2763,7 @@ Exception Handled in Main
     ```
     
 
+<br><br>
 **Can you explain about try with resources?**
 
 - **Try-with-resources is a Java feature introduced in Java 7 that automatically closes resources when the try block finishes.**
@@ -2767,6 +2797,7 @@ Exception Handled in Main
     No `finally` block is required — the `BufferedReader` (and underlying `FileReader`) is automatically closed.
     
 
+<br><br>
 **How does try with resources work?**
 
 ```java
