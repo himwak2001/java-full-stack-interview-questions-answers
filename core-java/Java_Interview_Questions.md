@@ -2864,6 +2864,8 @@ Continue execution
     - Arrays are created in the **heap**, where fields always get default values.
     - Ensures predictable behavior and prevents uninitialized memory access.
 
+
+<br><br>
 **How do you loop around an array using enhanced for loop?**
 
 - **An enhanced for loop (also called the “for-each” loop) is used to iterate over arrays or collections in a simple, readable way.**
@@ -2900,6 +2902,8 @@ Continue execution
 - **It avoids common mistakes like index out-of-bounds.**
     - Because you don’t manage indexes manually, the iteration is safer.
 
+
+<br><br>
 **How do you compare two arrays?**
 
 - **Arrays in Java should not be compared using `==`.**
@@ -2943,6 +2947,8 @@ Continue execution
     - Java’s `Arrays.equals()` is optimized and handles all edge cases (null checks, length mismatch, etc.).
     - It produces cleaner, more readable code.
 
+
+<br><br>
 **What is an Enum?**
 
 - **An enum (short for “enumeration”) is a special data type in Java used to define a fixed set of constant values.**
@@ -3007,6 +3013,8 @@ Continue execution
     - Status values (ACTIVE, INACTIVE, PENDING)
     - Configuration and command groups
 
+
+<br><br>
 **Can you use a Switch Statement around an Enum?**
 
 - **Java allows using `switch` directly on enum types.**
@@ -3045,6 +3053,8 @@ Continue execution
     - Even though all enum constants are covered, the compiler doesn’t perform exhaustiveness checks (until newer versions with enhanced switch).
     - Therefore, a fallback return is required for compilation.
 
+
+<br><br>
 **What are Variable Arguments or varargs ?**
 
 - **Variable arguments (varargs) allow a method to accept zero or more arguments of the same type.**
@@ -3106,6 +3116,8 @@ Continue execution
 - **Only one varargs parameter is allowed in a method.**
     - Having more than one varargs parameter is not permitted.
 
+
+<br><br>
 **What are Asserts used for?**
 
 - **Assertions are used to test assumptions that *must* be true in the program.**
@@ -3138,6 +3150,8 @@ Continue execution
     
     - If `principal <= 0`, the assertion will fail (when enabled).
 
+
+<br><br>
 **What is Garbage Collection?**
 
 - **Garbage Collection (GC) is Java’s automatic memory management mechanism.**
@@ -3179,6 +3193,8 @@ Continue execution
     - G1GC (default in modern JVMs)
     - ZGC / Shenandoah (low-latency collectors)
 
+
+<br><br>
 **Can you explain Garbage Collection with an example?**
 
 - **When the method runs, it creates an object on the heap:**
@@ -3197,6 +3213,8 @@ Continue execution
     - The JVM identifies that no active part of the program can access this object.
     - At a later time (not immediately), the Garbage Collector removes it from the heap.
 
+
+<br><br>
 **When is Garbage Collection run?**
 
 - **GC runs automatically whenever the JVM decides it is necessary.**
@@ -3228,6 +3246,8 @@ Continue execution
     
     - This **suggests** GC to the JVM but does **not force** it.
 
+
+<br><br>
 **What are best practices on Garbage Collection?**
 
 - **Avoid relying on `System.gc()`**
