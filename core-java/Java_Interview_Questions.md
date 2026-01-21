@@ -3274,13 +3274,15 @@ Continue execution
         
     - This ensures deterministic resource cleanup, unlike GC.
 
+
+<br><br>
 **What are Initialization Blocks?**
 
 - **Initialization Blocks are special code blocks inside a class that run automatically**
     
-    They are executed either when the class is loaded or when an object is created, depending on their type.
+    - They are executed either when the class is loaded or when an object is created, depending on their type.
     
-    They allow you to run setup code without putting it inside a constructor or static method.
+    - They allow you to run setup code without putting it inside a constructor or static method.
     
 - **Types of Initialization Blocks:**
     
@@ -3311,6 +3313,7 @@ Continue execution
         ```
         
 
+<br><br>
 **What is Tokenizing?**
 
 - **Tokenizing means breaking a string into smaller pieces (tokens) based on a delimiter.**
@@ -3339,6 +3342,7 @@ Continue execution
     ```
     
 
+<br><br>
 **What is Serialization?**
 
 **Serialization** is the process of converting an object’s state into a **byte stream**, usually for:
@@ -3349,9 +3353,11 @@ Continue execution
 
 **De-serialization** is the reverse process—reconstructing an object from its byte stream.
 
+
+<br><br>
 **How serialization works in Java ?**
 
-1. A class must implement **`java.io.Serializable`** to allow its objects to be serialized.
+1. A class must implement **`java.io.Serializable`** (Interface) to allow its objects to be serialized.
 2. JVM converts the object into bytes and writes it using:
     
     ```java
@@ -3392,13 +3398,15 @@ Person p = (Person) ois.readObject();
 ois.close();
 ```
 
+
+<br><br>
 **How do you serialize an object using Serializable interface?**
 
 To serialize an object in Java:
 
 1. **The class must implement `Serializable`**
     
-    `Serializable` is a **marker interface** (it has *no methods*)—its presence tells the JVM that the object is allowed to be serialized.
+    `Serializable` is a **marker interface** (it has *no methods*) - its presence tells the JVM that the object is allowed to be serialized.
     
     ```java
     class Rectangle implements Serializable {
@@ -3429,6 +3437,8 @@ To serialize an object in Java:
     - `ObjectOutputStream.writeObject()` converts the `Rectangle` object into a **byte stream**.
     - This byte stream is saved to the file `Rectangle.ser`.
 
+
+<br><br>
 **How do you de-serialize in Java?**
 
 1. Deserialization is the process of converting the stored byte data back into a Java object exactly as it was during serialization.
@@ -3453,6 +3463,8 @@ System.out.println(rectangle.breadth);  // 6
 System.out.println(rectangle.area);     // 30
 ```
 
+
+<br><br>
 **What do you do if only parts of the object have to be serialized?**
 
 1. When only certain fields of an object should be saved during serialization, the fields that should **not** be stored are marked with the `transient` keyword.
@@ -3485,6 +3497,7 @@ System.out.println(rectangle.breadth);  // 6
 System.out.println(rectangle.area);     // 0  (transient → not serialized)
 ```
 
+<br><br>
 **How do you serialize a hierarchy of objects?**
 
 1. When an object contains other objects (object hierarchy), Java serialization requires **every object in that chain** to be serializable. If even one nested object does not implement `Serializable`, serialization will fail.
@@ -3533,6 +3546,8 @@ class Wall implements Serializable {
 
 1. During deserialization, Option 2 preserves the wall's properties, while Option 1 results in `wall = null`.
 
+
+<br><br>
 **Are the constructors in an object invoked when it is de-serialized?**
 
 - During deserialization, Java does **not** call the constructors of the class. The object is rebuilt directly from the serialized byte stream, restoring its fields exactly as they were when serialized.
@@ -3541,6 +3556,8 @@ class Wall implements Serializable {
 - This behavior ensures that the object’s state after deserialization matches exactly what it was at the time of serialization, without re-executing creation logic.
 - If special initialization is needed after deserialization, a class can define `readObject(ObjectInputStream in)` to perform custom work, but this is separate from normal constructor execution.
 
+
+<br><br>
 **Are the values of static variables stored when an object is serialized?** 
 
 - Static variables belong to the **class**, not to any specific object instance, so they are not included in an object’s serialized state.
@@ -3549,6 +3566,7 @@ class Wall implements Serializable {
 - If you need a static value to be persisted, it must be handled manually (e.g., writing it separately to a file), because Java serialization will never include it.
 
 
+<br><br>
 **Explain the use of final keyword in variable, method and class.**
 
 In Java, the final keyword is used as defining something as constant /final and represents the non-access modifier.
@@ -3600,13 +3618,6 @@ In Java, the final keyword is used as defining something as constant /final and 
     }
     ```
 
-<br><br>
-**Is it possible that the ‘finally’ block will not be executed? If yes then list the case.**
-
-Yes. It is possible that the ‘finally’ block will not be executed. The cases are
-
-1. Suppose we use **`System.exit()`** in the above statement.
-2. If there are fatal errors like Stack overflow, Memory access error, etc.
 
 <br><br>
 **Why is the main method static in Java?  / What will happen if we don't declare the main as static?**
@@ -3658,6 +3669,8 @@ Yes. It is possible that the ‘finally’ block will not be executed. The cases
 - The Java Collections Framework provides multiple collection types (such as `List`, `Set`, and `Map`), so developers can choose the most suitable data structure based on the use case.
 - Collections also provide built-in methods for common operations like searching, sorting, iteration, and synchronization, which reduces manual coding and improves reliability.
 
+
+<br><br>
 **What are the important interfaces in the Collection Hierarchy?**
 
 - The **Collection interface** is the root interface of the collection hierarchy. It represents a group of objects (elements) and extends `Iterable`, which allows collections to be traversed using enhanced for-loops.
