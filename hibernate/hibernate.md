@@ -100,3 +100,159 @@
     }
     ```
 
+<br><br>
+**What is a Hibernate configuration file?**
+1. **Core Concept**
+    - The File (`hibernate.cfg.xml`): This is the "Brain" of your Hibernate setup. It is an XML-based file that tells Hibernate where the database is, how to talk to it, and which Java classes to manage.
+    - It is traditionally placed in the `src/main/resources` folder of a Java project.
+    - Hibernate uses this class (`org.hibernate.cfg.Configuration`) to read the XML file and build the `SessionFactory`.
+2. **Key Properties & Elements**
+    - `hibernate.dialect`: Tells Hibernate which SQL "flavor" to use. Since every DB has slight syntax differences (e.g., MySQL vs. PostgreSQL), the Dialect ensures Hibernate generates the correct SQL.
+    - `hibernate.connection.url/username/password`: The standard JDBC credentials required to establish a physical connection to your database.
+    - `hibernate.hbm2ddl.auto`: A powerful property that controls the database schema:
+        - `create`: Drops existing tables and creates new ones.
+        - `update`: Updates the existing schema (adds new columns).
+        - `validate`: Checks if the Java code matches the DB but makes no changes.
+    - `hibernate.show_sql`: A debugging property. When set to true, it prints the Hibernate-generated SQL in your console.
+    - Mapping Resources: Includes the `<mapping class="..."/>` tags to register your `@Entity` classes.
+    ```xml
+    <?xml version = "1.0" encoding = "utf-8"?>
+    <!DOCTYPE hibernate-configuration SYSTEM 
+    "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+    <hibernate-configuration>
+    <session-factory>
+        <property name="hibernate.connection.driver_class">com.mysql.cj.jdbc.Driver</property>
+        <property name="hibernate.connection.url">jdbc:mysql://localhost:3306/my_db</property>
+        <property name="hibernate.connection.username">root</property>
+        <property name="hibernate.connection.password">password</property>
+
+        <property name="hibernate.dialect">org.hibernate.dialect.MySQL8Dialect</property>
+
+        <property name="hibernate.hbm2ddl.auto">update</property>
+
+        <mapping class="com.example.model.User"/>
+    </session-factory>
+    </hibernate-configuration>
+    ```
+3. **Analogy**:
+    - The Configuration file is like a GPS for a Driver: It provides the coordinates (URL), the keys (Username/Password), and the rules of the road (Dialect) so the driver (Hibernate) knows exactly where to go and how to behave.
+
+
+<br><br>
+**What is the role of SessionFactory in Hibernate?**
+- It is a factory interface (`org.hibernate.SessionFactory`) used to create Session objects. It serves as the central hub where all Hibernate configurations are compiled and stored.
+- It is thread-safe, meaning multiple threads can access it simultaneously without issues. Because of this, only one instance is typically created per database.
+- It is "expensive" to create because it has to read the mapping files, parse the configuration, and build the metadata for every table in your database.
+- It manages the database connection pool (like C3P0 or HikariCP), ensuring that the application can efficiently reuse database connections.
+- It holds the Second-Level Cache, which is global. If one session loads data, the SessionFactory can store it so other sessions don't have to hit the database again for that same data.
+- Once initialized, its configuration cannot be changed at runtime. To change a property, the application must be restarted to rebuild the factory.
+- **Analogy**: The SessionFactory is like a Main Power Grid for a city: It is massive and expensive to build, but once it's running, it provides the electricity (Sessions) to every individual house in the city.
+
+
+<br><br>
+**What is the purpose of the Session interface in Hibernate?**
+- It is the primary interface (`org.hibernate.Session`) used by Java applications to communicate with the database. It acts as a wrapper around a physical JDBC connection.
+- It represents a single conversation with the database. It is short-lived and should be opened and closed for every task (e.g., one HTTP request).
+- Unlike the `SessionFactory`, the `Session` should never be shared between multiple threads. If two threads use the same session, it can lead to data inconsistency and errors.
+- **First-Level Cache**: The Session acts as a mandatory cache. Any object you save or load is stored here first, reducing the number of SQL queries sent to the database within that single session.
+- **Key Operations & Syntax**
+    - `save(Object obj)` / `persist(Object obj)`: Adds a new object to the database.
+    - `update(Object obj)` / `merge(Object obj)`: Updates an existing record.
+    - `get(Class, id)` / `load(Class, id)`: Retrieves a record by its Primary Key.
+    - `delete(Object obj)`: Removes a record from the database.
+    - `beginTransaction()`: Returns a Transaction object to manage the unit of work.
+```java
+@Override
+    public String registerUserWithGetCurrentSession(User user) {
+        String message = "User reg failed...";
+        // user: in java heap, state: TRANSIENT
+        // get the session from session factory
+        Session session = getFactory().getCurrentSession(); // jdbc connection will be obtained from this connection pool
+        // begin a transaction
+        Transaction tx = session.beginTransaction(); // db connection is pooled out -- wrapped in the session object, L1 cache is created
+        try {
+            // org.hibernate.Session API : public Serializable save(Object transientObjRef) throws HibernateException
+            Serializable userId = session.save(user); // userId : created and used by Hibernate based on auto generation strategy // user ref is added in the cache, state: PERSISTENT
+            tx.commit(); // upon commit, hibernate perform "automatic dirty checking" : compare state of L1 cache with that of db: automatically DML will be fired (insert query)
+            // close the connection -> so that pooled out connection return to the pool and L1 cache is destroyed
+            message = "user registration successfully with ID: " + userId;
+        } catch (RuntimeException e) {
+            if (tx != null) {
+                tx.rollback();
+            }
+            throw e;
+        }
+        return message;
+    }
+```
+- **Analogy**: The Session is like a Shopping Cart: You put items in (save), remove them (delete), or change them (update) during your visit. Once you "Check out" (Commit/Close), the final state is recorded in the store's system (Database).
+
+
+
+<br><br>
+**What are the different states of a Hibernate object?**
+1. **Transient**
+    - An object is created using the new keyword but is not yet associated with a Session i.e., is in Heap
+    - It has no corresponding row in the database.
+2. **Persistent**
+    - The object is associated with an active `org.hibernate.Session` and also part of L1 cache. Hibernate "tracks" this object.
+    -  It has a corresponding row in the database.
+    - Any changes made to the object’s setters (e.g., `user.setName("New Name")`) will be automatically updated in the database upon commit (Dirty Checking).
+3. **Detached State**
+    - An object that was previously persistent but the `Session` has been closed or the object was explicitly removed from the session cache.
+    - The row still exists in the database, but Hibernate is no longer watching the object for changes.
+4. **Removed State**
+    - An object marked for deletion via `session.delete()`.
+    - The row still exists until the transaction is committed, at which point it is deleted from the table.
+5. **Analogy**
+    - Transient: Typing in a Notepad on your desktop (not saved anywhere).
+    - Persistent: Typing in a Google Doc while online (every change is auto-saved).
+    - Detached: Closing the browser tab (the doc exists, but changes you make offline won't sync).
+
+
+<br><br>
+> ### 💡 Interview Prep: Hibernate Dirty Checking
+> **The Mechanism:** When an entity becomes **Persistent**, Hibernate stores a **Snapshot** (an exact copy) of its initial state in the **First-Level Cache (Session)**.
+> 
+> **The Detection:** During `session.flush()` or `transaction.commit()`, Hibernate performs a process called **Dirty Checking**. It compares the current state of the object against the stored snapshot.
+> 
+> **The Result:** If a difference is found (the object is "dirty"), Hibernate automatically schedules and executes the necessary `UPDATE` SQL statement.
+
+
+<br><br>
+**Explain the difference between load() and get() methods in Hibernate.**
+1. **Database Hit**
+    - `get()`: Hits the database immediately. It executes the SELECT query as soon as the method is called.
+    - `load()`: Does not hit the database immediately. It returns a Proxy (a hollow placeholder) and only hits the database when you actually access a property of the object (like `user.getName()`).
+2. **Return Value vs. Exception**
+    - `get()`: Returns null if the record is not found in the database.
+    - `load()`: Never returns null. It always returns a proxy. However, if the record doesn't exist in the DB, it throws an `ObjectNotFoundException` the moment you try to access the proxy's data.
+3. **When to use**
+    - `get()`: Use when you are not sure if the record exists and want to perform a null check.
+    - `load()`: Use when you are certain the record exists, or when you just need the object's ID to establish a relationship.
+```java
+import org.hibernate.Session;
+import org.hibernate.ObjectNotFoundException;
+
+// Package: org.hibernate.Session
+Session session = sessionFactory.openSession();
+
+// 1. Using get()
+User user1 = session.get(User.class, 1); 
+if(user1 != null) {
+    System.out.println(user1.getName());
+}
+
+// 2. Using load()
+User user2 = session.load(User.class, 2); 
+try {
+    // Database is hit ONLY at this line
+    System.out.println(user2.getName()); 
+} catch (ObjectNotFoundException e) {
+    System.out.println("User not found!");
+}
+```
+4. **Analogy**
+    - `get()` is like going to a restaurant and ordering a burger: you wait until the burger is cooked and served to you.
+    - `load()` is like getting a token from the counter: you have the "promise" of a burger, but the actual cooking only starts when you present the token to the chef.
