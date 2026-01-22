@@ -3702,6 +3702,7 @@ In Java, the final keyword is used as defining something as constant /final and 
     ```
     
 
+<br><br>
 **What are the important methods that are declared in the Collection Interface?**
 
 - The `Collection` interface defines the **basic operations** that can be performed on a group of objects, regardless of the specific collection type (List, Set, or Queue).
@@ -3729,6 +3730,8 @@ In Java, the final keyword is used as defining something as constant /final and 
     ```
     
 
+
+<br><br>
 **Can you explain briefly about the List Interface?**
 
 - The `List` interface extends the `Collection` interface, so it inherits all basic collection operations such as add, remove, size, and iteration.
@@ -3760,6 +3763,7 @@ In Java, the final keyword is used as defining something as constant /final and 
     ```
     
 
+<br><br>
 **Explain about ArrayList with an example?**
 
 - `ArrayList` is a resizable array implementation of the `List` interface, so it maintains **insertion order** and allows **duplicate elements**.
@@ -3768,7 +3772,7 @@ In Java, the final keyword is used as defining something as constant /final and 
 - An `ArrayList` of integers can be created as shown below:
     
     ```java
-    List<Integer> integers =newArrayList<Integer>();
+    List<Integer> integers = newArrayList<Integer>();
     ```
     
 - Due to **auto-boxing**, primitive values like `int` are automatically converted into their wrapper class (`Integer`) when added to an `ArrayList`.
@@ -3791,6 +3795,8 @@ In Java, the final keyword is used as defining something as constant /final and 
     
 - `ArrayList` allows fast **random access** using indexes, making it suitable when frequent reads are required.
 
+
+<br><br>
 **Can an ArrayList have Duplicate elements?**
 
 1. Yes, an `ArrayList` **can contain duplicate elements** because it implements the `List` interface, and `List` allows duplicates.
@@ -3815,6 +3821,8 @@ System.out.println(arraylist.size());// 4
 System.out.println(arraylist.contains("Dravid"));// true
 ```
 
+
+<br><br>
 **How do you sort an ArrayList?**
 
 1. An `ArrayList` can be sorted using the static `Collections.sort()` method provided by the Java Collections Framework.
@@ -3840,6 +3848,8 @@ Collections.sort(numbers);
 System.out.println(numbers);// [four, one, three, two]
 ```
 
+
+<br><br>
 **How do you sort elements in an ArrayList using Comparable interface?**
 
 1. To sort elements in an `ArrayList` using the **Comparable interface**, the class of the elements must implement `Comparable<T>` and provide an implementation of the `compareTo()` method.
@@ -3898,6 +3908,8 @@ System.out.println(cricketers);
 // [Bradman 9996, Ponting 11000, Dravid 12000, Sachin 14000]
 ```
 
+
+<br><br>
 **How do you sort elements in an ArrayList using Comparator interface?**
 
 1. The **Comparator interface** is used when we want to define a **custom or multiple sorting orders** without changing the class whose objects are being sorted.
