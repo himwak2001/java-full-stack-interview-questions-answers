@@ -212,7 +212,7 @@
 
 
 <br><br>
-> ### 💡 Interview Prep: Hibernate Dirty Checking
+> #### 💡 Interview Prep: Hibernate Dirty Checking
 > **The Mechanism:** When an entity becomes **Persistent**, Hibernate stores a **Snapshot** (an exact copy) of its initial state in the **First-Level Cache (Session)**.
 > 
 > **The Detection:** During `session.flush()` or `transaction.commit()`, Hibernate performs a process called **Dirty Checking**. It compares the current state of the object against the stored snapshot.
@@ -256,3 +256,124 @@ try {
 4. **Analogy**
     - `get()` is like going to a restaurant and ordering a burger: you wait until the burger is cooked and served to you.
     - `load()` is like getting a token from the counter: you have the "promise" of a burger, but the actual cooking only starts when you present the token to the chef.
+
+
+<br><br>
+**What are the basic annotations used in Hibernate?**
+- `@Entity` (`jakarta.persistence.Entity`):
+  - Marks a Java class as a "Persistent Object." Hibernate will treat this class as a table in the database.
+  - Every entity must have a no-argument constructor.
+- `@Table` (`jakarta.persistence.Table`):
+  - Specifies the exact name of the database table. If not used, Hibernate assumes the table name is the same as the class name.
+  - `@Table(name = "users_data")`
+- `@Id` (`jakarta.persistence.Id`):
+  - Defines the Primary Key of the entity. Every `@Entity` must have exactly one `@Id`.
+- `@GeneratedValue` (`jakarta.persistence.GeneratedValue`):
+  - Specifies how the Primary Key should be generated (e.g., Auto-increment).
+  - `IDENTITY` (DB handles it), `SEQUENCE` (uses DB sequences), `AUTO` (Hibernate decides).
+- `@Column` (`jakarta.persistence.Column`):
+  - Maps a field to a specific database column. You can define constraints like `length`, `nullable`, and `unique`.
+  - `@Column(name = "user_email", nullable = false, length = 100)`
+- `@Transient` (`jakarta.persistence.Transient`):
+  - Tells Hibernate not to map this field to the database. It exists only in Java.
+
+#### Relationship & Advanced Annotations
+- `@OneToMany` / `@ManyToOne` / `@OneToOne`: Defines the cardinality between two entities (e.g., One Department has Many Employees).
+- `@JoinColumn`: Defines the Foreign Key column in the table that connects to the related entity.
+- `@Embeddable` / `@Embedded`: Used for Component Mapping.
+  - `@Embeddable` is put on a class (like `Address`) that doesn't have its own table.
+  - `@Embedded` is used in the main Entity to include those fields into the same table.
+- `@Version`: Used for Optimistic Locking. Hibernate checks this version number before updating to prevent two users from overwriting each other's changes.
+
+```java
+// jpa compliant - Hibernate independent
+// For Hibernate, Pojo - classes need not be serializable, the primary key property should be serializable
+@Entity // mandatory class level annotation -> telling jvm this has to be persistent
+@Table(name = "users_tbl") // specifies table name
+public class User {
+    @Id // mandatory specify the primary key of an entity
+//    @GeneratedValue // Hibernate chooses the default db specific strategy for automatic primary key generation
+    @GeneratedValue(strategy = GenerationType.IDENTITY) // auto_increment constraint suitable for MySQL DB
+    @Column(name = "user_id")
+    private Integer userId;
+
+    @Column(length = 20) // varchar(20)
+    private String name;
+
+    @Column(length = 20, unique = true) // varchar(20), unique constraint
+    private String email;
+
+    @Column(length = 15, nullable = false) // varchar(15), NOT NULL constraint
+    private String password;
+
+    @Enumerated(EnumType.STRING) // column type varchar(20)
+    @Column(name = "user_role", length = 20)
+    private UserRole userRole;
+
+    @Transient // skips from persistent (no corresponding column)
+    private String confirmPassword;
+
+    @Column(name = "reg_amount")
+    private double regAmount;
+
+    @Column(name = "reg_date")
+    private LocalDate regDate; // column type : date
+
+    @Lob // column type blob : medium blob
+    private byte[] image;
+
+    // must supply a default constructor
+    public User() {
+        System.out.println("In user constructor");
+    }
+}
+```
+
+
+<br><br>
+**What is the significance of the `@Entity` annotation?**
+- The `@Entity` annotation is one of the most important annotations in Hibernate, as it marks a class as a persistent entity. 
+- When a Java class is annotated with `@Entity`, Hibernate recognizes that class as an entity and will automatically map it to a table in the database.
+- It serves as a marker to tell Hibernate to handle this class in terms of ORM.
+- Key Points:
+  - It must be placed on a Java class.
+  - The class must have a no-argument constructor (either explicit or implicit) to allow Hibernate to instantiate the object.
+  - If no table name is provided, Hibernate will use the class name as the table name by default.
+  - The `@Entity` annotation is typically used in conjunction with other annotations, such as `@Id` to define the primary key, and `@Table` to define the table name explicitly.
+
+
+<br><br>
+**What is `@Id` annotation used for?**
+- This is a mandatory annotation used to define the Primary Key of an entity. Hibernate uses this field to uniquely identify, manage, and cache objects.
+- Every class marked with `@Entity` must have exactly one `@Id` annotation (unless using a Composite Key). Without it, Hibernate will throw a `MappingException` at startup.
+- It maps the Java field to the column in the database that has the `PRIMARY KEY` constraint.
+- Hibernate uses the ID to check the First-Level Cache. Before hitting the database, it checks if an object with that specific ID already exists in the current `Session`.
+- In Hibernate, two objects are considered "the same" if they have the same class type and the same ID value, even if their other fields (like name or salary) are different.
+
+
+<br><br>
+**What is the purpose of `@Table` annotation?**
+- The `@Table` annotation is used to define the database table that a Hibernate entity is mapped to.
+- It is not mandatory. If you don't use it, Hibernate follows a naming convention where the table name exactly matches the Java class name (e.g., class `User` maps to table `User`).
+- It is primarily used when the Java class name and the Database table name are different (e.g., your class is named `Employee` but the existing database table is named `EMP_MASTER`).
+- **Key Attributes of @Table**
+  - `name`: Defines the actual name of the table in the database.
+  - `schema`: Specifies the schema name if the table belongs to a specific one (e.g., `HR` or `FINANCE`).
+  - `uniqueConstraints`: Allows you to define constraints that span multiple columns (e.g., the combination of `dept_id` and `emp_code` must be unique).
+  - `indexes`: Used to define database indexes directly from the Java code to improve search performance.
+
+
+<br><br>
+**What is the role of @GeneratedValue in Hibernate?**
+- The `@GeneratedValue` annotation is used in conjunction with the `@Id` annotation to define how the primary key of an entity is generated.
+- Hibernate provides several strategies to generate the primary key value automatically:
+- **Generation Strategy**: You can specify the strategy used to generate the primary key using the strategy attribute. Common strategies include:
+  - `GenerationType.AUTO`: Let Hibernate choose the appropriate strategy based on the database.
+  - `GenerationType.IDENTITY`: Use an auto-incrementing column for primary key generation.
+  - `GenerationType.SEQUENCE`: Use a database sequence to generate primary keys (usually for databases like PostgreSQL, Oracle).
+- **Name**: The name attribute specifies the name of the sequence or table used for generating values, particularly for `GenerationType.SEQUENCE` and `GenerationType.TABLE`.
+
+
+<br><br>
+> #### 💡 Deep Dive: The naming strategy
+>In an interview, you might be asked: "What if I want all my tables to be lowercase and have underscores?" Deep Explanation: While @Table(name = "...") works for individual classes, Hibernate also uses a PhysicalNamingStrategy. This is a global setting that can automatically convert CamelCase Java names into snake_case database names. If you use @Table, you are manually overriding this strategy for that specific class.
