@@ -377,3 +377,125 @@ public class User {
 <br><br>
 > #### 💡 Deep Dive: The naming strategy
 >In an interview, you might be asked: "What if I want all my tables to be lowercase and have underscores?" Deep Explanation: While @Table(name = "...") works for individual classes, Hibernate also uses a PhysicalNamingStrategy. This is a global setting that can automatically convert CamelCase Java names into snake_case database names. If you use @Table, you are manually overriding this strategy for that specific class.
+
+
+<br><br>
+**What are the types of inheritance mapping in Hibernate?**
+
+Hibernate supports three types of inheritance mapping strategies to map the inheritance relationship in Java to a relational database:
+1. **Single Table Strategy (`InheritanceType.SINGLE_TABLE`)**
+   1. All classes in the hierarchy (Parent and all Children) are stored in one single table.
+   2. Hibernate uses a special column (e.g., `DTYPE`) to store the "type" of the record so it knows which Java class to instantiate.
+   3. Pros: High performance (no joins required); simplest to query.
+   4. Violates data normalization; columns belonging to specific subclasses must allow NULL values because other subclasses won't use them.
+   ```java
+    @Entity
+    @Inheritance(strategy = InheritanceType.SINGLE_TABLE)
+    @DiscriminatorColumn(name = "emp_type", discriminatorType = DiscriminatorType.STRING)
+    public class Employee { 
+        @Id @GeneratedValue private Long id;
+        private String name;
+    }
+
+    @Entity
+    @DiscriminatorValue("MGR")
+    public class Manager extends Employee {
+        private String department;
+    }
+   ```
+
+2. **Joined Table Strategy (`InheritanceType.JOINED`)**
+   1. Each class has its own table. The parent table contains common fields, and subclass tables contain only specific fields plus a Foreign Key pointing to the parent.
+   2. Most normalized approach; no wasted space with NULL columns.
+   3. Performance overhead due to JOIN operations when fetching data.
+   ```java
+    @Entity
+    @Inheritance(strategy = InheritanceType.JOINED)
+    public class Vehicle {
+        @Id @GeneratedValue private Long id;
+        private String fuelType;
+    }
+
+    @Entity
+    public class Car extends Vehicle {
+        private int seatingCapacity; // This goes to a separate 'Car' table
+    }
+   ```
+
+3. **Table Per Class Strategy (`InheritanceType.TABLE_PER_CLASS`)**
+   1. Every concrete class gets its own table. Unlike Joined, each table contains all columns (both parent and child fields). There is no "Parent" table in the database.
+   2. Clean for querying a specific subclass directly.
+   3. Data redundancy (duplicate columns across tables); very expensive to run polymorphic queries (e.g., `SELECT * FROM Employee` requires a `UNION`).
+   ```java
+    @Entity
+    @Inheritance(strategy = InheritanceType.TABLE_PER_CLASS)
+    public class Employee {
+        @Id
+        @GeneratedValue(strategy = GenerationType.AUTO)
+        private Long id;
+        private String name;
+    }
+
+    @Entity
+    public class Manager extends Employee {
+        private String department;
+    }
+   ```
+
+<br><br>
+**How do you map a one-to-many relationship in Hibernate?**
+
+In Hibernate, a One-to-Many relationship represents a scenario where one record in a table (e.g., Department) is associated with multiple records in another table (e.g., Employees).
+
+- This is usually Bidirectional. One side has `@OneToMany` and the other has `@ManyToOne`.
+- The entity with the `@ManyToOne` annotation is the Owner of the relationship. It physically holds the Foreign Key in the database.
+- The entity with the `@OneToMany` annotation uses the `mappedBy` attribute to tell Hibernate that the relationship is already managed by the other side.
+- Foreign Key (`@JoinColumn`): This annotation is placed on the "Many" side to define the name of the column that will link the two tables.
+- The Many Side (Owner)
+  ```java
+    @Entity
+    public class Employee {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+
+        @ManyToOne // Many employees for one department
+        @JoinColumn(name = "dept_id") // The FK column name in EMP table
+        private Department department;
+    }
+  ```
+- The "One" Side (The Inverse)
+  ```java
+    @Entity
+    public class Department {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+
+        // mappedBy points to the VARIABLE name in the Employee class
+        @OneToMany(mappedBy = "department", cascade = CascadeType.ALL)
+        private List<Employee> employees = new ArrayList<>();
+    }
+  ```
+
+
+<br><br>
+**What is the difference between a persistent object and a transient object in Hibernate?**
+
+In Hibernate, the primary difference between Transient and Persistent states lies in whether the object is currently "known" and "tracked" by the Hibernate Session.
+
+- **Association with Session (`org.hibernate.Session`):**
+  - **Transient**: Not associated with any Session. It is just a regular Java object.
+  - **Persistent**: Actively associated with a Session. Hibernate maintains a "handle" on this object.
+- **Database Representation:**
+  - **Transient**: Does not have a corresponding row in the database.
+  - **Persistent**: Has a corresponding row in the database, and its ID field is populated.  
+- **Dirty Checking (Automatic Sync):**
+  - **Transient**: Hibernate ignores it. If you change a value (e.g., `user.setName("New")`), nothing happens in the DB.
+  - **Persistent**: Hibernate tracks all changes. If you call a setter, Hibernate automatically detects the change and updates the database during the next flush or commit.
+- **Lifecycle Stage:**
+  - **Transient**: Created using the new keyword but not yet passed to save(), persist(), or saveOrUpdate().
+  - **Persistent**: Created after calling `session.save()`, `session.persist()`, or after being retrieved from the DB using `session.get()`.
+- **Analogy**
+  - A Transient object is like a draft email on your computer that hasn't been uploaded yet; a Persistent object is like a Google Doc—every time you type a letter, it is automatically synced to the server.
+
