@@ -499,3 +499,158 @@ In Hibernate, the primary difference between Transient and Persistent states lie
 - **Analogy**
   - A Transient object is like a draft email on your computer that hasn't been uploaded yet; a Persistent object is like a Google Doc—every time you type a letter, it is automatically synced to the server.
 
+
+
+<br><br>
+**How do you retrieve data from the database using Hibernate?**
+
+There are several ways to retrieve data from the database using Hibernate. The most common methods are:
+
+1. **Using HQL (Hibernate Query Language)**: 
+   - An object-oriented query language. You write queries against Java Classes and Properties, not database tables and columns.
+   - Interface: `org.hibernate.query.Query`
+   - Best for static, readable queries involving joins and complex logic.
+    ```java
+    // Package: org.hibernate.query.Query
+    Query<Employee> query = session.createQuery("from Employee where dept = :d", Employee.class);
+    query.setParameter("d", "IT");
+    List<Employee> results = query.getResultList();
+    ```
+
+2. **Using Criteria API:**
+    - The Criteria API is used to build dynamic queries programmatically. 
+    - It is especially useful when building queries based on conditions that are determined at runtime.
+    - Interface: `jakarta.persistence.criteria.CriteriaQuery` (or the legacy `org.hibernate.Criteria`)
+    - Best for Dynamic Search screens where filters (like "Min Salary", "Name") are optional and decided at runtime.
+    ```java
+    // Package: jakarta.persistence.criteria.*
+    CriteriaBuilder cb = session.getCriteriaBuilder();
+    CriteriaQuery<Employee> cq = cb.createQuery(Employee.class);
+    Root<Employee> root = cq.from(Employee.class);
+    cq.select(root).where(cb.gt(root.get("salary"), 50000));
+
+    List<Employee> results = session.createQuery(cq).getResultList();
+    ```
+
+3. **Using Native SQL:**
+   - Allows execution of raw database-specific SQL.
+   - Interface: `org.hibernate.query.NativeQuery`
+   - Used as a last resort for database-specific features (like window functions or stored procedures) that HQL doesn't support.
+    ```java
+    // Package: org.hibernate.query.NativeQuery
+    NativeQuery<Employee> nq = session.createNativeQuery("SELECT * FROM emp_table WHERE sal > 50000", Employee.class);
+    List<Employee> results = nq.list();
+    ```
+
+4. **Using get() and load()**
+    - Used to fetch a single object based on its Primary Key.
+    - Interface: `org.hibernate.Session`
+    - Best for simple lookups where the ID is known.
+
+<br><br>
+**What is the Criteria API in Hibernate?**
+
+The Criteria API provides a programmatic, type-safe way to define queries. It is the preferred choice when queries need to be built dynamically based on user input.
+
+- It is an object-oriented API used to define queries. Instead of writing query strings (like HQL or SQL), you use Java methods to add "Restrictions" or "Conditions."
+- Since it uses Java classes and methods, errors (like misspelling a field name) can often be caught at compile-time rather than runtime.
+- It is ideal for "Search Screens" where a user might fill in some filters (e.g., Min Price, Category) and leave others blank. You can add conditions to the Criteria object using `if` statements.
+- Modern (JPA Standard): `jakarta.persistence.criteria.CriteriaQuery` used along with `jakarta.persistence.criteria.CriteriaBuilder`.
+
+```java
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Predicate;
+import org.hibernate.Session;
+import org.hibernate.query.Query;
+
+public List<Employee> findDynamicEmployees(String name, Double minSalary) {
+    Session session = sessionFactory.openSession();
+    
+    // 1. Initialize Builder and Query
+    CriteriaBuilder cb = session.getCriteriaBuilder();
+    CriteriaQuery<Employee> cq = cb.createQuery(Employee.class);
+    Root<Employee> root = cq.from(Employee.class); // FROM Employee
+
+    // 2. Build Dynamic Conditions
+    List<Predicate> predicates = new ArrayList<>();
+    
+    if (name != null) {
+        predicates.add(cb.equal(root.get("name"), name));
+    }
+    if (minSalary != null) {
+        predicates.add(cb.gt(root.get("salary"), minSalary));
+    }
+
+    // 3. Apply WHERE clause and Execute
+    cq.where(predicates.toArray(new Predicate[0]));
+    Query<Employee> query = session.createQuery(cq);
+    
+    return query.getResultList();
+}
+```
+
+
+<br><br>
+**What is the difference between HQL and SQL in Hibernate?**
+
+Hibernate Query Language (HQL) is an object-oriented query language similar to SQL but operates on Java objects (entities) rather than database tables. Here’s a breakdown of the key differences between HQL and SQL:
+
+1. **Object-Oriented vs. Relational:**
+    - **HQL** works with persistent objects (entities) and their properties, not directly with database tables or columns.
+    - **SQL** is directly concerned with the database schema (tables, columns, joins, etc.).
+2. **Database Independence:**
+    - **HQL** abstracts the underlying database, meaning you can write a query in HQL and Hibernate will generate the appropriate SQL for the specific database being used.
+    - **SQL** is database-specific, meaning queries need to be written in a way that matches the SQL dialect of the specific database.
+3. **Use of Aliases:**
+    - **HQL** allows you to work with object aliases. For example, when querying, you can refer to the entity and its properties.
+    - **SQL** requires you to use table and column names.
+
+
+<br><br>
+**What is a Query in Hibernate and how does it work?**
+
+- A Query in Hibernate is an interface used to create and execute queries to retrieve or manipulate data in the database. 
+- Hibernate provides two main ways to create queries: using HQL (Hibernate Query Language) or using the Criteria API. 
+- The Query interface is used to execute these queries.
+- **Key points**:
+  - **Creating a query**: A query is created using the session.createQuery() method for HQL queries, or session.createCriteria() for the Criteria API.
+  - **Setting parameters**: You can pass parameters to the query using methods like setParameter().
+  - **Executing a query**: Once the query is created, you can execute it using methods like `list()` to retrieve a list of results, or `uniqueResult()` to get a single result.
+- **Example**:
+    ```java
+    Session session = sessionFactory.openSession();
+    Query query = session.createQuery("FROM Employee WHERE salary > :salary");
+    query.setParameter("salary", 50000);
+    List<Employee> employees = query.list();
+    session.close();
+    ```
+
+<br><br>
+**What are the different types of caching mechanisms in Hibernate?**
+
+Hibernate provides several levels of caching to improve performance by reducing the number of database queries and storing frequently accessed data in memory.
+
+1. **First-Level Cache (Session Cache):**
+   - It is a mandatory cache and exists for the duration of a Hibernate session.
+   - The first-level cache is associated with a session, meaning it stores entities and their state for the lifetime of that session.
+   - It is not shared across sessions, and when a session is closed, the cache is cleared.
+2. **Second-Level Cache (SessionFactory Cache):**
+   - The second-level cache is optional and is shared across multiple sessions. It caches entities, collections, and queries at the session factory level.
+   - The second-level cache can be configured to use different caching providers, such as EHCache, Infinispan, or OSCache.
+   - It improves performance by reducing database access, especially when the same data is frequently queried across multiple sessions.
+3. **Query Cache:**
+   - The query cache is a cache for storing the results of queries, which is particularly useful when running the same query repeatedly with different parameters.
+   - It is not enabled by default and needs to be explicitly configured alongside the second-level cache.
+4. **Shared Cache (Hibernate Cache):**
+   - The shared cache allows for caching at the transaction level, beyond just individual sessions or query results.
+```xml
+<property name="hibernate.cache.region.factory_class">org.hibernate.cache.ehcache.EhCacheRegionFactory</property>
+<property name="hibernate.cache.use_second_level_cache">true</property>
+<property name="hibernate.cache.use_query_cache">true</property>
+<property name="hibernate.cache.provider_class">org.hibernate.cache.EhCacheProvider</property>
+```
+
+
+<br><br>
