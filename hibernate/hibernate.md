@@ -654,3 +654,106 @@ Hibernate provides several levels of caching to improve performance by reducing 
 
 
 <br><br>
+**What is the purpose of the flush() method in Hibernate?**
+
+- The `flush()` method in Hibernate is used to synchronize the in-memory state of the session with the database.
+- When you perform changes to entities (e.g., `save`, `update`, `delete`), Hibernate does not immediately write those changes to the database. 
+- Instead, it maintains them in the first-level cache. Calling `flush()` forces Hibernate to persist those changes to the database.
+- Key Points
+  - Flush does not commit a transaction. It only synchronizes the session’s state with the database.
+  - Hibernate flushes automatically when a transaction is committed.
+  - It can be invoked manually if you need to force synchronization before committing.
+  ```java
+    Session session = sessionFactory.openSession();
+    session.beginTransaction();
+    Employee employee = session.get(Employee.class, 1L);
+    employee.setSalary(60000);
+    session.flush();  // Forces the update to be written to the database immediately
+    session.getTransaction().commit();
+    session.close();
+  ```
+
+
+<br><br>
+**What is lazy loading and eager loading in Hibernate?**
+
+Lazy Loading and Eager Loading are two different strategies for loading associated entities in Hibernate.
+1. **Lazy Loading**
+   - In lazy loading, associated entities are **loaded on demand**. They are not fetched from the database until they are explicitly accessed.
+   - This strategy can improve performance by deferring unnecessary database calls, but it can lead to the **N+1 select problem** if not handled carefully.
+   - Example:
+   ```java
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Department department;
+   ```
+
+2. **Eager Loading:**
+   - In eager loading, associated entities are loaded immediately with the parent entity. The data for the associated entities is retrieved in the same query as the parent.
+   - It can result in better performance when you know that the associated data will be needed immediately but can lead to fetching more data than required.
+   ```java
+    @ManyToOne(fetch = FetchType.EAGER)
+    private Department department;
+   ```
+
+
+<br><br>
+**How do you handle transactions in Hibernate?**
+
+A Transaction represents a logical unit of work that ensures data integrity by following the ACID properties (Atomicity, Consistency, Isolation, Durability).
+
+- **`org.hibernate.Transaction`:** This interface is used by the application to define the boundaries of a unit of work. It abstracts the underlying transaction implementation (JDBC or JTA).
+- The primary goal is to ensure that if you are performing multiple database operations, either all of them succeed together or none of them are applied.
+- A Transaction is associated with a `Session`. You obtain it by calling `session.beginTransaction()`.
+- **Commit vs. Rollback**:
+  - `commit()`: Permanently saves the changes to the database.
+  - `rollback()`: Undoes all changes made during the current transaction if an error occurs.
+- **Analogy**: A Transaction is like an ATM Withdrawal: The system must deduct money from your account and give you the cash; if it fails to give you the cash, it must "rollback" and put the money back in your account.
+
+<br><br>
+> #### 💡Deep Dive: ACID Properties in Hibernate
+> 
+> In an interview, you should mention how Hibernate helps maintain ACID:
+> - **Atomicity**: Through `commit()` and `rollback()`.
+> - **Consistency**: Hibernate ensures the Persistence Context (First-level cache) matches the database state after a successful commit.
+> - **Isolation**: Hibernate relies on the underlying database's isolation levels but provides Versioning (@Version) to handle concurrent updates (Optimistic Locking).
+> - **Durability**: `Once commit()` is called, Hibernate ensures the data is flushed to the physical database.
+
+
+<br><br>
+**What is a first-level cache in Hibernate?**
+
+- The first-level cache in Hibernate is the session cache and is enabled by default for each session.
+- It is a cache that stores entities and their state during the lifecycle of the Session. 
+- Once an entity is retrieved or persisted, it is stored in the first-level cache, and subsequent requests for the same entity within the session will retrieve it from this cache, rather than querying the database again.
+- **Key Characteristics:**
+  - **Session-scoped**: The cache is tied to the Session and is cleared when the session is closed.
+  - **No configuration required**: It is automatically handled by Hibernate.
+  - **Entity identity**: Only one instance of an entity is associated with a session for a given identifier, which ensures that any changes to an entity are tracked.
+
+
+<br><br>
+**What is the purpose of the `@JoinColumn` annotation?**
+
+- The `@JoinColumn` annotation is used in Hibernate (and JPA) to specify the column that is used to join two entities in a relationship (usually for one-to-many, many-to-one, and many-to-many mappings). 
+- It defines the foreign key column in the database that refers to the associated entity.
+- Key Points:
+  - It is used to specify the foreign key column for an entity's relationship.
+  - It is commonly used with many-to-one and one-to-one relationships.
+  - It can specify attributes like the column name, nullable constraint, and uniqueness.
+- Example:
+  ```java
+    @Entity
+    public class Employee {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    private String name;
+
+    @ManyToOne
+    @JoinColumn(name = "department_id") // Foreign key column in the "employee" table
+    private Department department;
+    }
+  ```
+- In this example, the @JoinColumn annotation specifies that the department_id column in the employee table is used as the foreign key to link to the Department entity.
+
