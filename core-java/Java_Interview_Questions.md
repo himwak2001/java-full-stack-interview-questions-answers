@@ -3946,6 +3946,8 @@ System.out.println(cricketers);
 // [Sachin 14000, Dravid 12000, Ponting 11000, Bradman 9996]
 ```
 
+
+<br><br>
 **What is LinkedList? What interfaces does it implement? How is it different from an ArrayList?**
 
 1. `LinkedList` is a Java collection class that stores elements using a **doubly linked list** structure, where each element holds references to both the previous and next elements.
@@ -3966,8 +3968,10 @@ LinkedList:
 A <-> B <-> C <-> D  → nodes linked in both directions
 ```
 
-1. In summary, use `ArrayList` when **read/search operations are frequent**, and use `LinkedList` when **insertions and deletions are frequent**.
+8. In summary, use `ArrayList` when **read/search operations are frequent**, and use `LinkedList` when **insertions and deletions are frequent**.
 
+
+<br><br>
 **Can you briefly explain about the Set Interface?**
 
 1. The `Set` interface extends the `Collection` interface and therefore inherits all basic collection operations such as add, remove, size, and iteration.
@@ -3986,6 +3990,8 @@ Set:
 [A, B, C]   // duplicate A removed
 ```
 
+
+<br><br>
 **What are the important interfaces related to the Set Interface?**
 
 1. The `Set` interface extends `Collection` and represents a collection that **does not allow duplicate elements**. If two objects are equal according to `equals()`, only one of them can exist in the set.
@@ -4008,8 +4014,10 @@ Collection
        NavigableSet
 ```
 
-1. These interfaces are useful when working with **unique elements** that also require **sorting and efficient navigation**.
+8. These interfaces are useful when working with **unique elements** that also require **sorting and efficient navigation**.
 
+
+<br><br>
 **What is the difference between Set and SortedSet interfaces?**
 
 1. `SortedSet` extends the `Set` interface, so **both do not allow duplicate elements**.
@@ -4028,6 +4036,8 @@ Set       →  [5, 3, 4]  (order not guaranteed)
 SortedSet →  [3, 4, 5]  (always sorted)
 ```
 
+
+<br><br>
 **Can you give examples of classes that implement the Set Interface?**
 
 1. **HashSet**
@@ -4072,6 +4082,8 @@ Set
  └── TreeSet        → sorted (natural / comparator)
 ```
 
+
+<br><br>
 **What is a HashSet?**
 
 1. `HashSet` is a class that implements the **Set interface**, so it **does not allow duplicate elements**.
@@ -4099,6 +4111,8 @@ hashset.add("Sachin");// returns false
 System.out.println(hashset);// [Sachin, Dravid]
 ```
 
+
+<br><br>
 **What is a `LinkedHashSet`? How is different from a HashSet?**
 
 1. `LinkedHashSet` is an implementation of the **Set interface**, so it **does not allow duplicate elements**, just like `HashSet`.
@@ -4116,7 +4130,7 @@ System.out.println(hashset);// [Sachin, Dravid]
 **Example:**
 
 ```java
-Set<String> linkedHashSet =newLinkedHashSet<>();
+Set<String> linkedHashSet = newLinkedHashSet<>();
 
 linkedHashSet.add("Sachin");
 linkedHashSet.add("Dravid");
@@ -4139,6 +4153,8 @@ System.out.println(hashSet);
 // Order not guaranteed
 ```
 
+
+<br><br>
 **What is a TreeSet? How is different from a HashSet?**
 
 1. `TreeSet` is an implementation of the `Set` interface that also implements `SortedSet` and `NavigableSet`, which means it stores **unique elements in sorted order**.
@@ -4169,6 +4185,8 @@ treeSet.add("Sachin");// returns false
 System.out.println(treeSet);// [Dravid, Ganguly, Sachin]
 ```
 
+
+<br><br>
 **Can you give examples of implementations of NavigableSet?**
 
 - `NavigableSet` is an interface that extends `SortedSet` and provides **navigation methods** to locate elements relative to a given value (lower, higher, floor, ceiling).
@@ -4176,7 +4194,7 @@ System.out.println(treeSet);// [Dravid, Ganguly, Sachin]
 - When elements are added to a `TreeSet`, they are automatically sorted:
     
     ```java
-    TreeSet<Integer> numbersTreeSet =newTreeSet<Integer>();
+    TreeSet<Integer> numbersTreeSet = newTreeSet<Integer>();
     numbersTreeSet.add(55);
     numbersTreeSet.add(25);
     numbersTreeSet.add(35);
