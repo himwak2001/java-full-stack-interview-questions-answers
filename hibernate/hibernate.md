@@ -757,3 +757,209 @@ A Transaction represents a logical unit of work that ensures data integrity by f
   ```
 - In this example, the @JoinColumn annotation specifies that the department_id column in the employee table is used as the foreign key to link to the Department entity.
 
+
+<br><br>
+**How do you map a many-to-many relationship in Hibernate?**
+
+Many-to-Many relationship occurs when multiple records in one table are associated with multiple records in another (e.g., Students and Courses).
+
+- **The Join Table**: Relational databases cannot directly link two tables in a many-to-many fashion. Hibernate automatically creates a Third Table (Join Table) that holds the Primary Keys from both sides as Foreign Keys.
+- **The Owner Side**: One entity is designated as the "owner." This side uses `@JoinTable` to define the name and columns of the middle table.
+- **The Inverse Side**: The other entity uses the `mappedBy` attribute to point to the field in the owner class. This prevents Hibernate from creating two separate join tables.
+- **Collection Type**: It is highly recommended to use a Set instead of a List to avoid duplicate entries in the join table and for better performance.
+- **The Owner Side (Student)**
+  ```java
+    @Entity
+    public class Student {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+
+        @ManyToMany
+        @JoinTable(
+            name = "student_course_map", // Name of the 3rd table
+            joinColumns = @JoinColumn(name = "std_id"), // FK for Student
+            inverseJoinColumns = @JoinColumn(name = "crs_id") // FK for Course
+        )
+        private Set<Course> courses = new HashSet<>();
+    }
+  ```
+- **The Inverse Side (Course)**
+  ```java
+    @Entity
+    public class Course {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+
+        // mappedBy refers to the "courses" variable in Student class
+        @ManyToMany(mappedBy = "courses")
+        private Set<Student> students = new HashSet<>();
+    }
+  ```
+
+<br><br>
+> #### 💡What is the difference between joinColumns and inverseJoinColumns?
+> - Deep Explanation: Inside the `@JoinTable` annotation:
+>   - `joinColumns`: Refers to the Foreign Key of the Owner entity (the class where you are writing the annotation).
+>   - `inverseJoinColumns`: Refers to the Foreign Key of the Target (other) entity.
+> - If you don't provide `@JoinTable`, Hibernate will generate one for you using its default naming strategy (e.g., `Student_Course`).
+
+
+<br><br>
+**What is a second-level cache in Hibernate?**
+
+- It is an optional, SessionFactory-scoped cache. While the first-level cache is restricted to a single session, the second-level cache is global and available to all sessions in the application.
+- If Session 1 fetches an Employee with ID 101, it is stored in the Second-Level Cache. If Session 2 later asks for the same Employee, Hibernate retrieves it from this cache instead of hitting the database.
+- Hibernate does not provide its own implementation for this cache. It provides an interface that allows you to plug in third-party providers like EHCache, Infinispan, or Hazelcast.
+- You must explicitly mark which entities should be cached using the `@Cacheable` annotation. Not all data should be cached (e.g., frequently changing data).
+- It significantly improves performance for Read-Heavy applications by reducing the number of expensive network calls to the database.
+- **Syntax & Configurations**
+  - **Dependency (Example: EHCache)**
+    - **Package**: **`org.hibernate.orm:hibernate-ehcache`**
+  - **Configuration (hibernate.cfg.xml)**
+    ```xml
+    <property name="hibernate.cache.use_second_level_cache">true</property>
+
+    <property name="hibernate.cache.region.factory_class">
+        org.hibernate.cache.jcache.internal.JCacheRegionFactory
+    </property>
+    ```
+  - **Entity Mapping**
+    ```java
+    import jakarta.persistence.Entity;
+    import jakarta.persistence.Cacheable;
+    import org.hibernate.annotations.Cache;
+    import org.hibernate.annotations.CacheConcurrencyStrategy;
+
+    @Entity
+    @Cacheable
+    @Cache(usage = CacheConcurrencyStrategy.READ_WRITE) // Strategy
+    public class Product {
+        @Id
+        private Long id;
+        private String name;
+    }
+    ```
+
+<br><br>
+**What is the difference between save() and persist() methods in Hibernate?**
+
+1. **Return Value:**
+   - `save()`: Returns the Identifier (Primary Key) of the entity immediately. To do this, it may force an INSERT statement right away if using an IDENTITY generator.
+   - `persist()`: Has a void return type. It does not return the ID.
+2. **API Origin:**
+   - `save()`: A native Hibernate method (`org.hibernate.Session`).
+   - `persist()`: A JPA standard method (`jakarta.persistence.EntityManager`), making it better for application portability.
+3. **Handling Detached Objects:**
+   - `save()`: If called on a Detached object, it creates a new row in the database with a new ID (it treats it as a new entity).
+   - `persist()`: If called on a Detached object, it throws an `EntityExistsException` or `PersistentObjectException`. It strictly demands a Transient (new) object.
+4. **Transaction Context:**
+   - `save()`: Can be called outside a transaction boundary; it will still return an ID, though the data won't be saved until a transaction starts.
+   - `persist()`: Strictly follows JPA rules; it ensures the object is not saved if called outside a transaction.
+   ```java
+    Session session = sessionFactory.openSession();
+
+    // NO TRANSACTION STARTED YET
+    User user = new User("Swapnil");
+    Long id = (Long) session.save(user); 
+    System.out.println("I have an ID: " + id); // This prints 101
+
+    // If I stop here and close the session, 'Swapnil' is NOT in the database.
+
+    session.beginTransaction(); 
+    // ... perform other work ...
+    session.getTransaction().commit(); // NOW the data is permanently saved.
+    session.close();
+   ```
+5. **Analogy**
+   - `save()` is like calling the hotel and getting a Confirmation Number. You feel good because you have a number, but if you never show up with your credit card (the Transaction) to pay, you don't actually have a room.
+   - `persist()` is like the hotel website saying, "You cannot even get a confirmation number until you enter your credit card details" (the Transaction). It forces the "payment" step to be part of the process.
+
+
+<br><br>
+**What is the role of HibernateUtil class?**
+
+- The HibernateUtil class is a utility class that is typically used to configure and initialize the Hibernate SessionFactory.
+- It ensures that only one instance of SessionFactory exists for the entire application.
+- It uses a `static` block to configure and build the factory as soon as the class is loaded, ensuring the database connection settings are validated immediately at startup.
+- It serves as a single place to handle `hibernate.cfg.xml` or programmatic mapping (like `addAnnotatedClass`).
+- It provides a `shutdown()` method to close the SessionFactory and the underlying connection pool when the application stops, preventing memory leaks.
+  ```java
+  // bootstraping hibernate application
+    public class HibernateUtils {
+        private static SessionFactory factory;
+
+        // how to ensure creation of singleton instance of the session factory ? Singleton and Eager
+        static {
+            System.out.println("In the static initializer block");
+            // booting hibernate using the hibernate.cfg.xml and building the session factory
+            factory = new Configuration().configure().buildSessionFactory();
+        }
+
+        // getter for SessionFactory, return only single/same instance
+        public static SessionFactory getFactory() {
+            return factory;
+        }
+    }
+  ```
+
+<br><br>
+**What is a Detached object in Hibernate?**
+
+- A detached object in Hibernate is an object that was once persistent but is no longer associated with a Session. 
+- A detached object is an entity that has been saved to the database and then the Session has been closed or the object has been evicted.
+- **Key points:**
+  - Detached objects are not synchronized with the session's persistence context.
+  - You can reattach a detached object to a new session using methods like `update()`, `merge()`, or `saveOrUpdate()`.
+- Example:
+  ```java
+    // Persistent object
+    Session session = sessionFactory.openSession();
+    Employee emp = session.get(Employee.class, 1);
+    session.close();
+
+    // Detached object (after session is closed)
+    Employee detachedEmp = emp;
+  ```
+- To reattach the detached object:
+  ```java
+    Session session2 = sessionFactory.openSession();
+    session2.beginTransaction();
+    session2.update(detachedEmp); // or session2.merge(detachedEmp);
+    session2.getTransaction().commit();
+    session2.close();
+  ```
+
+<br><br>
+**How do you perform batch processing in Hibernate?**
+
+- Batch processing in Hibernate allows you to execute multiple `insert`, `update`, or `delete` operations in a single database round-trip. 
+- This can significantly improve performance when working with large amounts of data.
+- To enable batch processing in Hibernate:
+    1. Set the appropriate batch size in the configuration file.
+    2. Use `Session.save()` or `Session.update()` in a loop, and periodically flush and clear the session to prevent memory issues.
+- Example of enabling batch processing:
+  ```xml
+    <property name="hibernate.jdbc.batch_size">50</property>
+    <property name="hibernate.order_inserts">true</property>
+    <property name="hibernate.order_updates">true</property>
+    <property name="hibernate.batch_versioned_data">true</property>
+  ```
+- Example of using batch processing in code:
+  ```java
+    Session session = sessionFactory.openSession();
+    Transaction transaction = session.beginTransaction();
+    for (int i = 0; i < 1000; i++) {
+        Employee emp = new Employee("Employee" + i);
+        session.save(emp);
+        
+        if (i % 50 == 0) { // Flush every 50 records
+            session.flush();
+            session.clear();
+        }
+    }
+    transaction.commit();
+    session.close();
+  ```
+- In this example, after every 50 operations, the session is flushed and cleared to free memory and execute the batch efficiently.
