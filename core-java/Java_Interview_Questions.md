@@ -4234,6 +4234,8 @@ System.out.println(treeSet);// [Dravid, Ganguly, Sachin]
     
 - These navigation methods are especially useful for **range queries**, **closest-value searches**, and **ordered data processing**.
 
+
+<br><br>
 **Explain briefly about Queue Interface?**
 
 1. The `Queue` interface extends the `Collection` interface and represents a collection designed to **hold elements for processing in a specific order**, typically **FIFO (First-In-First-Out)**.
@@ -4250,13 +4252,13 @@ System.out.println(treeSet);// [Dravid, Ganguly, Sachin]
 **Simple visual representation of a Queue (FIFO):**
 
 ```
-Insert --> [ A ][ B ][ C ] --> Remove
-             ↑
-           Head
+Insert (Tail) --> [ C ] [ B ] [ A ] --> Remove (Head)
 ```
 
 This makes the `Queue` interface ideal for **ordered, sequential processing of elements**.
 
+
+<br><br>
 **What are the important interfaces related to the Queue Interface?**
 
 1. The **Queue interface** has two important sub-interfaces that extend its functionality: **Deque** and **BlockingQueue**.
@@ -4285,6 +4287,8 @@ Collection
 
 These interfaces extend the basic queue concept to support **double-ended access** and **concurrent processing** scenarios.
 
+
+<br><br>
 **Explain about the Deque interface?**
 
 1. `Deque` stands for **Double Ended Queue** and extends the `Queue` interface, meaning it supports all queue operations plus additional ones.
@@ -4313,6 +4317,8 @@ removeLast  -> removes Y
 
 This makes `Deque` very useful when elements need to be processed efficiently from **both ends**.
 
+
+<br><br>
 **Explain the `BlockingQueue` interface?**
 
 1. `BlockingQueue` is a sub-interface of `Queue` that is designed for **thread-safe communication between producer and consumer threads**.
@@ -4347,8 +4353,10 @@ Producer Thread
 Consumer Thread
 ```
 
-1. Because all blocking behavior is handled internally, `BlockingQueue` helps write **cleaner, safer multithreaded code** without manual synchronization.
+12. Because all blocking behavior is handled internally, `BlockingQueue` helps write **cleaner, safer multithreaded code** without manual synchronization.
 
+
+<br><br>
 **What is a `PriorityQueue`?**
 
 1. `PriorityQueue` is an implementation of the `Queue` interface where **elements are ordered based on priority**, not insertion order.
@@ -4378,8 +4386,8 @@ System.out.println(priorityQueue.poll());// 9
 System.out.println(priorityQueue);// [15, 24, 45]
 ```
 
-1. A custom priority order can be defined by passing a `Comparator` to the `PriorityQueue` constructor.
-2. The following comparator gives **higher priority to larger numbers** (reverse order):
+8. A custom priority order can be defined by passing a `Comparator` to the `PriorityQueue` constructor.
+9. The following comparator gives **higher priority to larger numbers** (reverse order):
 
 ```java
 Comparator<Integer> reverseComparator =newComparator<Integer>() {
@@ -4392,7 +4400,7 @@ PriorityQueue<Integer> maxPriorityQueue =
 newPriorityQueue<Integer>(reverseComparator);
 ```
 
-1. With this comparator, calling `peek()` or `poll()` will return the **largest element first**.
+10. With this comparator, calling `peek()` or `poll()` will return the **largest element first**.
 
 **Simple visual representation:**
 
@@ -4405,9 +4413,11 @@ Priority (natural order):
 peek() / poll() always return → 9
 ```
 
-1. `PriorityQueue` does **not allow null elements** and is **not thread-safe**.
-2. It is commonly used in scheduling tasks, job processing, and algorithms like Dijkstra’s or Huffman coding where priority matters.
+11. `PriorityQueue` does **not allow null elements** and is **not thread-safe**.
+12. It is commonly used in scheduling tasks, job processing, and algorithms like Dijkstra’s or Huffman coding where priority matters.
 
+
+<br><br>
 **Can you give example implementations of the BlockingQueue interface?**
 
 - `BlockingQueue` is commonly used in **producer–consumer** scenarios where one thread produces data and another consumes it, and the queue handles waiting automatically.
