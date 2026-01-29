@@ -986,3 +986,124 @@ To optimize the performance of a Hibernate-based application, consider the follo
    - Ensure your database tables have proper indexes to speed up lookups, particularly for frequently queried columns.
 8. **Use Connection Pooling**
    - Use a connection pooling mechanism (e.g., C3P0, HikariCP) to efficiently manage database connections.
+
+
+<br><br>
+**What is the difference between session.save() and session.saveOrUpdate()?**
+
+The methods save() and saveOrUpdate() are used to persist objects in Hibernate, but they have key differences:
+
+* **`save()`:**
+  * The save() method is used to persist a new object to the database. It returns the identifier (ID) of the saved entity.
+  * If the entity is already persistent (i.e., it already exists in the session or database), it will throw an exception (`org.hibernate.PersistentObjectException`).
+  * Example:
+    ```java
+    session.save(employee);  // Saves a new employee to the database
+    ```
+* **`saveOrUpdate()`:**
+  * The `saveOrUpdate()` method is more flexible. It either saves a new entity or updates an existing one if the entity already exists (based on the ID).
+  * If the entity is already in the database, Hibernate performs an update. If the entity is not in the database, Hibernate performs an insert.
+  * Example:
+    ```java
+    session.saveOrUpdate(employee);  // Either saves or updates the employee
+    ```
+
+
+<br><br>
+**What is cascading in Hibernate and what are the different types of cascading?**
+
+- Cascading in Hibernate refers to the propagation of certain operations (like persist, delete, update) from a parent entity to its associated entities. 
+- This is useful when you want the same operation to be performed on related entities automatically.
+- Without cascading, if you have a Department with 10 Employees, you would have to manually call `session.save()` 11 times. 
+- With cascading, you save the Department, and Hibernate automatically saves all 10 Employees for you.
+- There are different types of cascading in Hibernate, which are controlled using the `@Cascade` or `cascade` attribute in annotations or mapping files:
+  - **`CascadeType.ALL:`**
+    - This is a shorthand for all operations. Every action taken on the parent (save, delete, update, etc.) is mirrored on the children..
+  - **`CascadeType.PERSIST`**:
+    - When the parent is saved via `persist()`, all children are saved. This is commonly used for parent-child creation.
+  - **`CascadeType.MERGE`**:
+    - If you merge a detached parent, the children are also merged. Essential for updating entire object graphs.
+  - **`CascadeType.REMOVE`**:
+    - If you delete the parent, all its children are deleted.
+    - Warning: Be careful with this on Many-to-Many relationships, as you might accidentally delete shared data.
+  - **`CascadeType.REFRESH`**
+    - If you reload the parent from the database, all children are reloaded to ensure the entire graph is synchronized.
+  - **`CascadeType.DETACH`**
+    - If the parent is removed from the session (becomes detached), all children also become detached.
+  - Example:
+    ```java
+    @Entity
+    public class Department {
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+
+        // Logic: Save/Update/Delete Department -> Do same for Employees
+        @OneToMany(mappedBy = "department", 
+                cascade = CascadeType.ALL, 
+                orphanRemoval = true) 
+        private List<Employee> employees = new ArrayList<>();
+    }
+    ```
+
+<br><br>
+> #### 💡Cascade Deep Dive
+> Avoid using CascadeType.ALL blindly. In large enterprise systems, specifically for Many-to-One relationships (like many Employees to one Department), you almost never want to cascade a delete. If you delete an Employee, you don't want the entire Department to vanish! Use ALL only for strict "Composition" relationships where the child cannot exist without the parent.
+
+
+<br><br>
+**How do you handle concurrency in Hibernate?**
+
+In high-concurrency environments, such as the Connected Vehicle Data Streaming Platform you are planning, handling simultaneous data updates is critical. Hibernate manages this through two primary locking mechanisms: Optimistic and Pessimistic locking.
+
+1. **Optimistic Locking**
+   - Optimistic locking assumes that multiple transactions can complete without affecting each other. It only checks for a conflict when saving the data.
+   - Hibernate uses a version number or timestamp. When you read a row, Hibernate notes the version. When you update, it executes: `UPDATE table SET ..., version = version + 1 WHERE id = ? AND version = <old_version>`
+   - If another transaction changed the row in the meantime, the `WHERE` clause fails because the version changed. Hibernate then throws a `StaleObjectStateException`.
+   - **Pros**: High performance; no database-level locks are held, which prevents deadlocks.
+   - **Best for**: Applications with more reads than writes or where conflicts are rare.
+2. **Pessimistic Locking**
+   - Pessimistic locking assumes a conflict will happen. it locks the record at the database level the moment you read it.
+   - It uses database-specific syntax (like `SELECT ... FOR UPDATE` in MySQL/PostgreSQL).
+   - **Lock Modes**:
+     - **`PESSIMISTIC_READ`**: Others can read, but no one can update.
+     - **`PESSIMISTIC_WRITE`**: No one else can read or update the row until your transaction ends.
+   - **Pros**: Guarantees data consistency; no need to handle "retry" logic in Java.
+   - **Cons**: Poor scalability; can lead to Deadlocks and performance bottlenecks if many threads wait for the same lock.
+   - **Best for**: Financial systems or inventory management (e.g., booking the last seat on a flight).
+
+
+<br><br>
+**How do you configure Hibernate for a specific database dialect?**
+
+In Hibernate, the database dialect defines how Hibernate generates SQL for a specific database. You can configure the dialect in the `hibernate.cfg.xml` file:
+
+```xml
+<property name="hibernate.dialect">org.hibernate.dialect.MySQLDialect</property>
+```
+
+Some commonly used dialects:
+- **MySQL**: `org.hibernate.dialect.MySQLDialect`
+- **PostgreSQL**: `org.hibernate.dialect.PostgreSQLDialect`
+- **Oracle**: `org.hibernate.dialect.Oracle12cDialect`
+
+By setting the correct dialect, Hibernate generates SQL optimized for the underlying database's syntax and behavior.
+
+
+<br><br>
+**What is the difference between flush() and clear() in Hibernate?**
+
+- **`flush()`**:
+  - The `flush()` method synchronizes the in-memory changes in the current session with the database. It forces Hibernate to execute any SQL statements that are pending in the session’s cache.
+  - However, `flush()` does not commit the transaction; it just writes the changes to the database.
+  - Example:
+    ```java
+    session.flush();
+    ```
+- **`clear()`**:
+  - The `clear()` method clears the first-level cache of the session. It removes all objects from the session’s cache and effectively detaches them, meaning Hibernate will not track any changes to these objects after the call.
+  - This is useful if you have a large number of entities and want to free up memory.
+  - Example:
+    ```java
+    session.clear();
+    ```
