@@ -4449,6 +4449,8 @@ peek() / poll() always return → 9
     - `LinkedBlockingQueue` → linked-list-based, flexible size, higher concurrency throughput.
 - These implementations are part of `java.util.concurrent` and are designed to be **thread-safe without external synchronization**.
 
+
+<br><br>
 **Can you briefly explain about the Map Interface?**
 
 1. The `Map` interface is **not part of the Collection hierarchy**. It does not extend `Collection`, so it does not inherit methods like `add()`, `remove()`, or `iterator()`.
@@ -4499,8 +4501,10 @@ interfaceEntry<K, V> {
 }
 ```
 
-1. `Map` is commonly used for **fast lookups**, configuration data, caching, counting occurrences, and associating identifiers with values.
+11. `Map` is commonly used for **fast lookups**, configuration data, caching, counting occurrences, and associating identifiers with values.
 
+
+<br><br>
 **What is difference between Map and SortedMap?**
 
 1. `Map` is an interface that stores data as **key–value pairs**, where keys are unique, but it does **not guarantee any ordering** of keys.
@@ -4530,7 +4534,7 @@ Insert:  4, 5, 3
 Store :  3, 4, 5   (always sorted by key)
 ```
 
-1. Use `Map` when **ordering does not matter** and performance is the main concern; use `SortedMap` when **sorted keys and range-based queries** are required.
+8. Use `Map` when **ordering does not matter** and performance is the main concern; use `SortedMap` when **sorted keys and range-based queries** are required.
 
 **What is a HashMap?**
 
