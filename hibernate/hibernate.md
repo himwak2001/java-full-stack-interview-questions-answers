@@ -1107,3 +1107,102 @@ By setting the correct dialect, Hibernate generates SQL optimized for the underl
     ```java
     session.clear();
     ```
+
+
+<br><br>
+**What is the role of `Session.merge()` method in Hibernate?**
+
+- The `merge()` method in Hibernate is used to either **update** an existing persistent entity or **insert** it if it does not already exist in the database, and it also **returns the merged entity**.
+- It is particularly useful in situations where an entity is **detached** (i.e., it was previously persistent but the session was closed or the entity was evicted).
+- **Key Points**:
+  - **Detached Entity Handling**: If the entity passed to `merge()` is detached (i.e., its session is closed or it was evicted), `merge()` reattaches it to the current session.
+  - **Return Value**: Unlike `save()` or `update()`, `merge()` returns the entity instance with the updated state, which might be different from the entity passed as the argument.
+  - **No Exceptions**: It avoids `PersistentObjectException`, unlike `update()`, which throws an exception if the entity is detached.
+- **Example**:
+  ```java
+  Employee detachedEmp = new Employee(1, "John");
+  Session session = sessionFactory.openSession();
+  session.beginTransaction();
+  Employee mergedEmp = (Employee) session.merge(detachedEmp);  // mergedEmp is the updated entity
+  session.getTransaction().commit();
+  ```
+
+
+<br><br>
+**Explain the concept of Automatic Dirty Checking in Hibernate.**
+
+- When an entity is loaded from the database (via `get()`, `load()`, or a `query`), Hibernate creates a "Snapshot" - an exact copy of the object's initial state - and stores it in the First-Level Cache (Persistence Context).
+- As you modify the object's properties in your Java code, the object in the cache changes, but the Snapshot remains the same.
+- During the Flush process (which happens automatically during `transaction.commit()`), Hibernate performs a "Dirty Check." It compares the current state of the object with its original Snapshot.
+- If any differences are found, Hibernate marks the object as "Dirty" and generates the necessary `UPDATE` SQL statement to synchronize the database.
+```java
+Employee emp = session.get(Employee.class, 1);  // Assume emp is loaded from the DB
+emp.setName("New Name");  // Change is detected by Hibernate
+session.getTransaction().commit();  // Changes are flushed to DB during commit
+```
+
+<br><br>
+> 💡 Note
+> Hibernate L1 cache doubles memory usage by keeping both the active "Entity Instance" and a hidden "Original Snapshot" to enable automatic dirty-checking comparisons.
+
+
+<br><br>
+**When is Dirty Checking Triggered?**
+Dirty checking is not a real-time background thread; it is a Pull mechanism triggered by the `flush()` operation. This typically happens when:
+
+- `transaction.commit()` is called.
+- You manually call `session.flush()`.
+- A query is executed that might involve the modified entities (to ensure the query results are accurate).
+
+
+<br><br>
+**How can you handle the N+1 query problem in Hibernate?**
+
+- The N+1 query problem occurs when Hibernate loads an entity and then performs additional queries to load associated entities, resulting in a total of N+1 queries (1 query for the parent and N additional queries for each associated child entity).
+- This can significantly degrade performance, especially with large datasets.
+- To handle this problem, you can use the following strategies:
+  - **Use join fetch in HQL**:
+    - You can use the fetch keyword in an HQL (Hibernate Query Language) query to fetch related entities in a single query.
+    ```java
+    // Logic: Fetch departments AND employees in 1 single SQL query
+    String hql = "SELECT d FROM Department d JOIN FETCH d.employees";
+    List<Department> depts = session.createQuery(hql, Department.class).list();
+    ```
+  - **Entity Graphs (`@EntityGraph`)**
+    - Introduced in JPA 2.1, this allows you to define a "template" of what should be fetched. It is more flexible than JOIN FETCH because you can apply it to findById or repository methods.
+    ```java
+    @Entity
+    @NamedEntityGraph(name = "Dept.employees", attributeNodes = @NamedAttributeNode("employees"))
+    public class Department { ... }
+
+    // In your service layer:
+    EntityGraph graph = session.getEntityGraph("Dept.employees");
+    Map<String, Object> hints = new HashMap<>();
+    hints.put("jakarta.persistence.fetchgraph", graph);
+    Department dept = session.find(Department.class, 1L, hints);
+    ```
+  - **Batch Fetching (`@BatchSize`)**:
+    - If you can't use `JOIN FETCH`, you can use `@BatchSize`. Instead of firing 1 query for every 1 employee, Hibernate will wait and fetch them in "batches" (e.g., 10 at a time) using an IN clause.
+    ```java
+    CriteriaBuilder cb = session.getCriteriaBuilder();
+    CriteriaQuery<Department> cq = cb.createQuery(Department.class);
+    Root<Department> root = cq.from(Department.class);
+    root.fetch("employees", JoinType.LEFT);
+    List<Department> departments = session.createQuery(cq).getResultList();
+    ```
+
+
+<br><br>
+**What is a Hibernate proxy and how does it work?**
+
+- When you call `session.load()` or access a `@ManyToOne` association marked as `LAZY`, Hibernate doesn't run a SELECT query. Instead, it creates a dynamic subclass of your entity using a library like ByteBuddy or Javassist.
+- The proxy object is mostly empty, but it does know the Primary Key (ID).
+- When you call a getter (e.g., `emp.getName()`), the proxy intercepts the call.
+  - It checks: "Is the data loaded?"
+  - If **NO**, it triggers a SELECT query to the database (this is called Proxy Initialization).
+  - If **YES**, it returns the data from the now-populated "real" object inside the proxy.
+- **Key Exceptions**
+  - **`LazyInitializationException`**: This happens if you try to access a getter on a proxy after the session has been closed. Since the session is gone, the proxy has no "bridge" to the database to load the data.
+  - **`getClass()` Issue**: Since the proxy is a dynamic subclass, calling `emp.getClass()` will return something like `com.example.Employee$HibernateProxy$abc` instead of `com.example.Employee`. To get the real class, you must use `Hibernate.getClass(emp)`.
+- **Analogy**
+  - A Proxy is like a Gift Card. You have the card in your hand (it has a value/ID), but you don't actually have the item (the data) yet. You only get the actual item when you go to the store (the Database) and "redeem" the card.
