@@ -1206,3 +1206,139 @@ Dirty checking is not a real-time background thread; it is a Pull mechanism trig
   - **`getClass()` Issue**: Since the proxy is a dynamic subclass, calling `emp.getClass()` will return something like `com.example.Employee$HibernateProxy$abc` instead of `com.example.Employee`. To get the real class, you must use `Hibernate.getClass(emp)`.
 - **Analogy**
   - A Proxy is like a Gift Card. You have the card in your hand (it has a value/ID), but you don't actually have the item (the data) yet. You only get the actual item when you go to the store (the Database) and "redeem" the card.
+
+
+<br><br>
+**How does Hibernate handle object identity and equality?**
+
+Hibernate handles object identity and equality by using the entity’s identifier (ID) to determine if two instances represent the same entity.
+- Key Points:
+  - **Identity**: Hibernate ensures that an entity's identifier (usually the primary key) is unique within a session. The same entity instance will be loaded only once per session.
+  - **Equality**: By default, Hibernate uses the equals() and hashCode() methods of the entity to check for equality between objects. These methods should be overridden in your entity class based on the entity's identifier to avoid incorrect equality comparisons.
+  
+```java
+@Entity
+public class Employee {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Employee employee = (Employee) o;
+        return id != null && id.equals(employee.id);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(id);
+    }
+}
+```
+
+
+<br><br>
+**What are User Types in Hibernate and how do you create them?**
+
+JPA is the specification (the rules of the game), and Hibernate is the implementation (the actual player).
+
+| Feature | Hibernate Session | JPA EntityManager |
+| :--- | :--- | :--- |
+| **API Origin** | Native Hibernate API (`org.hibernate.Session`) | Standard JPA API (`jakarta.persistence.EntityManager`) |
+| **Standardization** | **Non-portable**: Your code is strictly locked to Hibernate. | **Portable**: High-level standard; can switch to EclipseLink or OpenJPA. |
+| **Transaction** | `session.beginTransaction()` | `entityManager.getTransaction().begin()` |
+| **Methods** | `save()`, `update()`, `saveOrUpdate()`, `load()` | `persist()`, `merge()`, `remove()`, `find()` |
+| **Query** | Supports **HQL** (Hibernate Query Language) | Supports **JPQL** (Java Persistence Query Language) |
+| **Exception** | Throws `HibernateException` (Unchecked) | Throws `PersistenceException` (Unchecked) |
+| **Unwrap Support** | N/A (It is the core implementation) | Can be "unwrapped" to access the native Session |
+
+
+<br><br>
+> #### 💡The Relationship (The "Unwrap" Concept)
+> If you are using `EntityManager`, but you suddenly need a feature that only Hibernate provides (like `session.saveOrUpdate()` or `StatelessSession`), you don't have to restart your project. You can "unwrap" the `EntityManager` to get the underlying `Session`.
+> ```java
+>  // Logic: Getting the Hibernate Session from JPA EntityManager
+>  Session session = entityManager.unwrap(Session.class);
+> ```
+
+
+<br><br>
+> #### 💡Critical Method Mappings
+> Interviewers often ask how the methods map between the two APIs. Use this for quick recall:
+> - `persist()` (JPA) $\approx$ `save()` / `persist()` (Hibernate)
+> - `merge()` (JPA) $\approx$ `merge()` / `saveOrUpdate()` (Hibernate)
+> - `find()` (JPA) $\approx$ `get()` (Hibernate)
+> - `getReference()` (JPA) $\approx$ `load()` (Hibernate) - Returns a Proxy!
+
+
+<br><br>
+**How can you map an enum type in Hibernate?**
+
+In Hibernate, enum types can be mapped to database columns in two main ways:
+
+1. **`EnumType.ORDINAL (Default)`**
+   - Stores the integer index of the enum (0, 1, 2...).
+   - Extremely efficient in terms of database storage space.
+   - If you change the order of your enums or add a new one in the middle, your existing database data will point to the wrong constants.
+     - Example: If you have `ACTIVE(0)`, `INACTIVE(1)` and you insert `PENDING` at the start, `ACTIVE` becomes 1. Old records stored as `0` are now suddenly interpreted as `PENDING`.
+2. **`EnumType.STRING`**
+   - Stores the literal name (e.g., "ACTIVE", "INACTIVE").
+   - Very readable in the database; safe to add new enums or reorder them.
+   - Consumes more space; if you rename an enum constant in Java, you must run an SQL script to update the database values.
+
+
+<br><br>
+**What is the difference between @Embedded and @Embeddable in Hibernate?**
+
+`@Embeddable` and `@Embedded` are two sides of the same coin used to implement the **Composition relationship**. This allows you to group related fields into a separate class (like Address or GPSCoordinates) without creating a separate database table.
+
+1. **`@Embeddable`: Defining the Value Object**
+   - You place this on the helper class. It tells Hibernate: *"This class doesn't have its own ID and doesn't deserve its own table. It only exists to be a part of something else."*
+    ```java
+    @Embeddable // Logic: I am a component, not an Entity.
+    public class Address {
+        private String street;
+        private String city;
+    }
+    ```
+2. **`@Embedded`: Using the Value Object**
+   - You place this on the field inside your `@Entity`. It tells Hibernate: *"Take the fields inside the Address class and flatten them into my table."*
+    ```java
+    @Entity
+    public class Employee {
+        @Id
+        private Long id;
+
+        @Embedded // Logic: Put the Address fields into the Employee table.
+        private Address address;
+    }
+    ```
+
+<br><br>
+> #### 💡 Note
+> - **Null Handling**: If all fields of the embedded object (`street` and `city`) are null in the database, Hibernate will set the `address` field in your Java object to `null`.
+> **`@AttributeOverrides`**: What if an `Employee` has two addresses (`homeAddress` and `officeAddress`)? You can't have two columns named `city`. You use `@AttributeOverride` to rename the columns for one of the fields.
+> ```java
+>@Entity
+>public class Employee {
+>
+>    @Id
+>    @GeneratedValue(strategy = GenerationType.IDENTITY)
+>    private Long id;
+>
+>    // Uses default column names: street, city, zipCode
+>    @Embedded
+>    private Address homeAddress;
+>
+>    // Logic: Override default column names to avoid collision
+>    @Embedded
+>    @AttributeOverrides({
+>        @AttributeOverride(name = "street", column = @Column(name = >"office_street")),
+>        @AttributeOverride(name = "city", column = @Column(name = >"office_city")),
+>        @AttributeOverride(name = "zipCode", column = @Column(name = >"office_zip"))
+>    })
+>    private Address officeAddress;
+>}
+> ```
