@@ -4536,6 +4536,8 @@ Store :  3, 4, 5   (always sorted by key)
 
 8. Use `Map` when **ordering does not matter** and performance is the main concern; use `SortedMap` when **sorted keys and range-based queries** are required.
 
+
+<br><br>
 **What is a HashMap?**
 
 1. `HashMap` is a concrete implementation of the `Map` interface and stores data as **key–value pairs**.
@@ -4549,7 +4551,7 @@ Store :  3, 4, 5   (always sorted by key)
 **Example code (correct and verified):**
 
 ```java
-Map<String, Cricketer> hashmap =newHashMap<String, Cricketer>();
+Map<String, Cricketer> hashmap = newHashMap<String, Cricketer>();
 
 hashmap.put("sachin",newCricketer("Sachin",14000));
 hashmap.put("dravid",newCricketer("Dravid",12000));
@@ -4557,7 +4559,7 @@ hashmap.put("ponting",newCricketer("Ponting",11500));
 hashmap.put("bradman",newCricketer("Bradman",9996));
 ```
 
-1. Each entry in the map is stored internally as a `Map.Entry<K, V>`, where the key is used to locate the corresponding value.
+8. Each entry in the map is stored internally as a `Map.Entry<K, V>`, where the key is used to locate the corresponding value.
 
 **Simple visual representation:**
 
@@ -4570,8 +4572,10 @@ Key        → Value
 
 ```
 
-1. `HashMap` is best used when **fast lookup by key** is required and **ordering is not important**.
+9. `HashMap` is best used when **fast lookup by key** is required and **ordering is not important**.
 
+
+<br><br>
 **What are the different methods in a Hash Map?**
 
 - `put(K key, V value)`
@@ -4634,6 +4638,8 @@ Key        Value
 - Values **can be duplicated**
 - Order of entries is **not guaranteed**
 
+
+<br><br>
 **What is a TreeMap? How is different from a HashMap?**
 
 - TreeMap implements **Map, SortedMap, NavigableMap**; HashMap implements **Map** only
@@ -4646,7 +4652,7 @@ Key        Value
 
 Visual representation:
 
-```
+```sh
 HashMap (unordered)
 { ponting=11500, sachin=14000, dravid=12000 }
 
@@ -4654,6 +4660,9 @@ TreeMap (sortedby key)
 { bradman=9996, dravid=12000, ponting=11500, sachin=14000 }
 ```
 
+
+
+<br><br>
 **Can you give an example of implementation of NavigableMap Interface?**
 
 - NavigableMap is an extension of SortedMap that provides navigation methods to find closest matching keys.
@@ -4692,22 +4701,24 @@ ceilingKey(25) →25
 
 - Best used when you need **sorted keys + fast range and nearest-key queries**.
 
+
+<br><br>
 **What are the static methods present in the Collections class?**
 
-- **binarySearch(List, key)**
+- **`binarySearch(List, key)`**
     - Searches an element using binary search
     - List **must be sorted**
     - Returns index if found, otherwise negative value
-- **binarySearch(List, key, Comparator)**
+- **`binarySearch(List, key, Comparator)`**
     - Binary search using a custom Comparator
     - List must be sorted according to the same Comparator
-- **reverse(List)**
+- **`reverse(List)`**
     - Reverses the order of elements in a List
-- **reverseOrder()**
+- **`reverseOrder()`**
     - Returns a Comparator that sorts elements in **reverse (descending) order**
-- **sort(List)**
+- **`sort(List)`**
     - Sorts the list in **natural order** (ascending for numbers, alphabetical for strings)
-- **sort(List, Comparator)**
+- **`sort(List, Comparator)`**
     - Sorts the list using a **custom Comparator**
 
 **Quick visual idea**
@@ -4740,6 +4751,8 @@ reverseOrder():[C, B, A]
     - Synchronized collections use **single lock → low concurrency**.
     - Concurrent collections use **advanced concurrency control → high performance and scalability**.
 
+
+<br><br>
 **Explain about the new concurrent collections in Java?**
 
 Introduced after Java 5 to support better concurrency and performance
