@@ -4795,6 +4795,8 @@ Multiplethreadsproceed
 
 - Overall benefit: higher throughput, better scalability, safer multithreaded behavior
 
+
+<br><br>
 **Explain about CopyOnWrite concurrent collections approach?**
 
 - `CopyOnWrite` is a concurrent collections approach introduced after Java 5
@@ -4832,6 +4834,8 @@ Oldreaderscontinueusing:
 - Readers are never blocked
 - Writers do not affect ongoing read operations
 
+
+<br><br>
 **What is CompareAndSwap approach?**
 
 - Compare and Swap (CAS) is a concurrency technique introduced in Java 5 to reduce locking.
