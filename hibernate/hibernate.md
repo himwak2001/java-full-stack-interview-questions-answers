@@ -1342,3 +1342,138 @@ In Hibernate, enum types can be mapped to database columns in two main ways:
 >    private Address officeAddress;
 >}
 > ```
+
+
+<br><br>
+**What is the difference between `@Entity` and `@MappedSuperclass`?**
+
+1. **`@Entity`**:
+   - Marks a class as a persistent entity. It means that the class will be mapped to a table in the database and instances of the class will be persisted.
+   - The class must have an `@Id` field to represent the primary key.
+   - Example:
+     ```java
+      @Entity
+      public class Employee {
+          @Id
+          @GeneratedValue(strategy = GenerationType.IDENTITY)
+          private Long id;
+          
+          private String name;
+      }
+     ```
+2. **`@MappedSuperclass`**:
+   - Marks a class as a superclass that contains persistent fields but is not itself an entity. It cannot be directly persisted or mapped to a table.
+   - Other entity classes can inherit from this class and inherit its mapping, but `@MappedSuperclass` itself does not have a table.
+   - Example:
+     ```java
+      @MappedSuperclass
+      public class Person {
+          private String name;
+          private String address;
+      }
+
+      @Entity
+      public class Employee extends Person {
+          @Id
+          @GeneratedValue(strategy = GenerationType.IDENTITY)
+          private Long id;
+      }
+     ```
+   - In this example, Employee inherits the name and address fields from Person, but Person is not directly mapped to a table.
+
+
+<br><br>
+**What is Transaction Management in Hibernate and how does it work?**
+
+Transaction Management is the "safety net" for your data. It ensures that a series of database operations either all succeed together or all fail together (ACID properties).
+
+Hibernate uses the `Transaction` interface to wrap the underlying database transaction. It follows a specific lifecycle:
+- **Begin Transaction**: Start a transaction using `session.beginTransaction()`.
+- **Perform Operations**: Perform entity manipulations (e.g., save, update, delete).
+- **Commit Transaction**: Commit the transaction using `transaction.commit()`.
+- Rollback: If there is an error, you can roll back the transaction using `transaction.rollback()`.
+
+```java
+Session session = sessionFactory.openSession();
+Transaction tx = session.beginTransaction();
+try {
+    session.save(new Employee("John"));
+    tx.commit();  // Commit the transaction
+} catch (Exception e) {
+    if (tx != null) {
+        tx.rollback();  // Rollback in case of exception
+    }
+}
+```
+
+
+<br><br>
+**What is the role of `@JoinTable` annotation in Hibernate?**
+
+The `@JoinTable` annotation is the primary way to manage a Many-to-Many relationship. It creates a separate physical table in the database whose only job is to store the foreign keys of two other tables.
+
+Without this "junction table," you cannot logically connect multiple records on both sides without violating database normalization rules.
+
+#### Key Components of `@JoinTable`
+- **`name`**: The physical name of the new table in the database (e.g., `student_course`).
+- **`joinColumns`**: This defines the foreign key that points back to the Owning Entity (the class where you are writing the annotation).
+- **`inverseJoinColumns`**: This defines the foreign key that points to the Target Entity (the other class in the relationship).
+
+#### Example
+```java
+@OneToMany
+@JoinTable(
+    name = "dept_employee",
+    joinColumns = @JoinColumn(name = "dept_id"),
+    inverseJoinColumns = @JoinColumn(name = "emp_id")
+)
+private List<Employee> employees;
+```
+
+<br><br>
+**What are the key differences between Hibernate and JPA?**
+
+JPA is the Blueprint (the plan for the house), and Hibernate is the Builder (the one who actually pours the concrete).
+
+| Feature | JPA (Java Persistence API) | Hibernate |
+| :--- | :--- | :--- |
+| **Scope** | A standard specification for ORM in Java. | A full-fledged ORM framework with its own API. |
+| **API** | Provides standard interfaces (e.g., `EntityManager`, `Query`). | Provides native APIs (e.g., `Session`, `Transaction`). |
+| **Configuration** | Uses `persistence.xml`. | Uses `hibernate.cfg.xml`. |
+| **Vendor Status** | Specification (implemented by vendors like Hibernate, EclipseLink). | A specific implementation (provider) of JPA. |
+| **Features** | Focuses on standard features (JPQL, Persistence Context). | Includes extras: L2 Caching, batching, and native HQL functions. |
+| **Portability** | **High**: Portable way to switch between different providers. | **Low**: Vendor-specific; requires changes to migrate. |
+
+
+<br><br>
+**How do you handle `LazyInitializationException` in Hibernate?**
+
+The `LazyInitializationException` is arguably the most famous error in Hibernate. It happens because you are trying to "redeem" a Proxy (that gift card we discussed) after the "store" (the Session) has already closed.
+
+#### Top Strategies to Fix LazyInitializationException
+1. **Join Fetch (The Performance-First Approach)**
+   - Instead of letting Hibernate create a Proxy and fail later, you tell it to get the data now using a single SQL Join. This is the best way to avoid the N+1 problem and the exception simultaneously.
+   ```java
+    // Logic: Fetch the employee AND their projects in one go
+    String hql = "SELECT e FROM Employee e JOIN FETCH e.projects WHERE e.id = :id";
+    Employee emp = session.createQuery(hql, Employee.class)
+                          .setParameter("id", id)
+                          .getSingleResult();
+   ```
+2. **`Hibernate.initialize()` (The Manual Fix)**
+   - If you are already inside a `@Transactional` method and realize you'll need the children after the method ends, you can force Hibernate to "fill" the Proxy.
+   ```java
+    Employee emp = session.get(Employee.class, id);
+    Hibernate.initialize(emp.getProjects()); // Logic: Triggers the SQL SELECT for projects immediately
+   ```
+3. **Entity Graphs (The Modern Approach)**
+   - Define exactly what "tree" of data you want at the repository level. This is cleaner than writing HQL.
+   ```java
+    @EntityGraph(attributePaths = {"projects", "department"})
+    Optional<Employee> findWithProjectsById(Long id);
+   ```
+4. T**he "Open Session in View" (OSIV) Trap**
+   
+   Many Spring Boot apps have `spring.jpa.open-in-view=true` by default.
+   - How it works: It keeps the database connection open until the JSON is fully rendered by the controller.
+   - The Warning: In high-scale systems (like your Vehicle Platform), this is considered an Anti-Pattern. It keeps database connections busy for too long, leading to "Connection Pool Exhaustion."
