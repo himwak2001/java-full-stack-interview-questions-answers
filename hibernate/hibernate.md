@@ -1477,3 +1477,123 @@ The `LazyInitializationException` is arguably the most famous error in Hibernate
    Many Spring Boot apps have `spring.jpa.open-in-view=true` by default.
    - How it works: It keeps the database connection open until the JSON is fully rendered by the controller.
    - The Warning: In high-scale systems (like your Vehicle Platform), this is considered an Anti-Pattern. It keeps database connections busy for too long, leading to "Connection Pool Exhaustion."
+
+
+<br><br>
+**Explain how Transaction Isolation Levels work in Hibernate.**
+
+In a concurrent environment, multiple transactions might try to read or modify the same data at the same time. Transaction isolation levels are the database's way of controlling the trade-off between Data Integrity and System Performance.
+
+To understand isolation levels, you must first know the three "evils" they are designed to prevent:
+- **Dirty Read**: Transaction A reads data that Transaction B has changed but not yet committed. If B rolls back, A is left with "fake" data that never technically existed.
+- **Non-Repeatable Read**: Transaction A reads a row. Transaction B updates that same row and commits. Transaction A reads the row again and sees different data.
+- **Phantom Read**: Transaction A reads a range of rows (e.g., all employees in 'HR'). Transaction B inserts a new employee into 'HR'. Transaction A reads the range again and sees a "phantom" row that wasn't there before.
+
+#### Isolation Levels Comparison
+| Isolation Level | Dirty Read | Non-Repeatable Read | Phantom Read | Performance |
+| :--- | :--- | :--- | :--- | :--- |
+| **READ UNCOMMITTED** | Possible | Possible | Possible | **Fastest** |
+| **READ COMMITTED** | Prevented | Possible | Possible | **Fast** |
+| **REPEATABLE READ** | Prevented | Prevented | Possible | **Medium** |
+| **SERIALIZABLE** | Prevented | Prevented | Prevented | **Slowest** |
+
+
+<br><br>
+**How to Set Isolation Levels in Hibernate**
+
+In Hibernate, the isolation level is typically managed at the JDBC Connection level. You can set it globally in your configuration or override it for specific transactions.
+
+#### Global Configuration (`hibernate.cfg.xml`)
+
+You use the hibernate.connection.isolation property with the following integer values:
+
+- 1: Read Uncommitted
+- 2: Read Committed (Most common default)
+- 4: Repeatable Read
+- 8: Serializable
+
+```xml
+<property name="hibernate.connection.isolation">2</property>
+```
+
+#### Declarative Way (Spring @Transactional)
+If you are using Spring with Hibernate, it is much cleaner to handle this at the service layer:
+```java
+@Transactional(isolation = Isolation.REPEATABLE_READ)
+public void processFinancialReport() {
+    // Logic here is protected from non-repeatable reads
+}
+```
+
+<br><br>
+**How do you manage and configure multi-tenancy in Hibernate?**
+
+Multi-tenancy is an architectural pattern where a single application instance serves multiple customers (tenants), ensuring data isolation between them. Hibernate provides built-in support for three primary strategies.
+
+1. **Multi-tenant Strategies**
+   
+    | Strategy | Isolation Level | Complexity | Description |
+    | :--- | :--- | :--- | :--- |
+    | **Separate Database** | **Highest** | High | Each tenant has its own physical database instance. Best for strict regulatory requirements. |
+    | **Separate Schema** | **Medium** | Medium | All tenants share one database, but each has a private schema (Namespace). Common in PostgreSQL/Oracle. |
+    | **Discriminator Column** | **Lowest** | Low | Tenants share the same table; a column (e.g., `tenant_id`) filters the data. Hibernate support for this is currently limited (often requires `@Filter`). |
+
+2. **Key Implementation Components**
+   
+   To implement multi-tenancy in Hibernate, you must provide two main components:
+   - **`CurrentTenantIdentifierResolver`**: This tells Hibernate which tenant is currently "active" for the current thread (usually retrieved from a JWT token or a Security Context).
+   - **`MultiTenantConnectionProvider`**: This provides the actual JDBC connection based on the identifier provided by the resolver.
+
+3. **Configuration Example**
+   
+   In your configuration (XML or Spring Properties), you must define the strategy and the provider classes:
+
+   ```xml
+    <property name="hibernate.multiTenancy">DATABASE</property>
+    <property name="hibernate.tenant_identifier_resolver">com.example.TenantResolver</property>
+    <property name="hibernate.multi_tenant_connection_provider">com.example.ConnectionProvider</property>
+   ```
+
+4. **Implementation Flow**
+   - **Request Arrives**: The application extracts the `tenantId` (e.g., from an HTTP Header).
+   - **Identifier Resolved**: `CurrentTenantIdentifierResolver` returns the `tenantId`.
+   - **Connection Borrowed**: `MultiTenantConnectionProvider` looks up the correct DataSource for that `tenantId` and gives a connection to the Session.
+   - **SQL Executed**: All queries are executed against the specific tenant's database/schema.
+
+
+
+<br><br>
+**What is the role of Interceptor in Hibernate, and when would you use it?**
+
+An Interceptor acts as a callback mechanism that allows you to inspect or manipulate the state of an entity before it reaches the database or after it is loaded into memory. It provides a way to apply "Cross-Cutting Concerns" without cluttering your business logic.
+
+#### How it Works: The Lifecycle Hook
+When you implement an Interceptor, Hibernate passes the entity's state (an array of field values) and property names to your methods. This allows you to modify the data before it is converted into SQL.
+
+#### Key Methods in the Interceptor Interface
+| Method | Timing | Best Use Case |
+| :--- | :--- | :--- |
+| **`onSave()`** | Before an entity is inserted. | Setting `CreatedBy` or `CreatedAt` timestamps. |
+| **`onFlushDirty()`** | Before an update is sent to DB. | Setting `ModifiedAt` or encrypting a field. |
+| **`onLoad()`** | Just after data is read from DB. | Decrypting data or calculating transient fields. |
+| **`onDelete()`** | Before an entity is removed. | Soft deletion logic or cleanup of external files. |
+| **`preFlush()` / `postFlush()`** | Before/After the session is flushed. | Batch logging or clearing caches. |
+
+#### Implementation Styles
+1. **EmptyInterceptor (Recommended)**: Instead of implementing the whole `Interceptor` interface, you extend `EmptyInterceptor` and override only the methods you need.
+2. **Session-Scoped vs. SessionFactory-Scoped**:
+   - **Session-scoped**: Registered when opening a session (`openSession(interceptor)`). It only affects that specific session.
+   - **SessionFactory-scoped**: Registered in the configuration. It affects all sessions created by that factory.
+
+#### Example
+```java
+public class CustomInterceptor extends EmptyInterceptor {
+    @Override
+    public boolean onSave(Object entity, Serializable id, Object[] state, String[] propertyNames, Type[] types) {
+        if (entity instanceof Employee) {
+            // custom logic before saving
+        }
+        return super.onSave(entity, id, state, propertyNames, types);
+    }
+}
+```
