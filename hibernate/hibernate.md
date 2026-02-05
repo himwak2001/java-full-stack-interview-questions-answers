@@ -18,6 +18,8 @@
 - The ORM tool (like Hibernate) automatically generates the `INSERT`, `UPDATE`, and `DELETE` SQL commands whenever you save or modify a Java object.
 - You define the rules of how the mapping happens using Annotations (like `@Entity`) or XML files. This tells the ORM exactly which table belongs to which class.
 - **Analogy:** ORM is like an Excel-to-Object Converter: Imagine you have an Excel sheet (Database Table). Instead of manually typing into cells, you have a magic Java object. Whatever you type into the object's fields automatically appears in the correct row and column of the Excel sheet.
+  
+  ![alt text](image.png)
 
 
 <br><br>
@@ -99,6 +101,8 @@
         return message;
     }
     ```
+
+    ![alt text](image-1.png)
 
 <br><br>
 **What is a Hibernate configuration file?**
@@ -1597,3 +1601,126 @@ public class CustomInterceptor extends EmptyInterceptor {
     }
 }
 ```
+
+<br><br>
+**Is hibernate prone to SQL injection attack?**
+
+Hibernate is not inherently immune to SQL injection, but it provides built-in tools that, when used correctly, make it very difficult for an attack to succeed. Vulnerabilities usually arise from how the developer writes the query rather than a flaw in the Hibernate framework itself.
+
+#### How SQL Injection Happens in Hibernate
+The danger occurs when you use String Concatenation to build HQL, JPQL, or Native SQL queries. This allows an attacker to "inject" malicious commands into the query string.
+
+```java
+// Logic: Directly appending user input into the query string
+String userInput = "admin' OR '1'='1";
+Query query = session.createQuery("FROM User WHERE username = '" + userInput + "'");
+```
+
+#### How to Prevent SQL Injection (Best Practices)
+1. **Parameterized Queries (The "Standard" Way)**
+   
+   Always use named parameters (`:name`) or positional parameters (`?`). Hibernate handles the escaping and quoting of the input values automatically using JDBC `PreparedStatement`.
+
+   ```java
+    // Logic: Using named parameters ensures input is treated as data, not code
+    Query query = session.createQuery("FROM User WHERE username = :name");
+    query.setParameter("name", userInput);
+   ```
+
+2. **Criteria API**
+   
+   The Criteria API is naturally safe from SQL injection because it uses a programmatic, type-safe way to build queries. Since you are calling methods like `.equal()` instead of writing a string, there is no place for an attacker to inject code.
+
+3. **Native SQL with Parameters**
+   
+   If you must use Native SQL, never concatenate strings. Use the same parameter binding logic.
+
+   ```java
+    // Secure Native SQL
+    session.createNativeQuery("SELECT * FROM users WHERE email = ?")
+          .setParameter(1, userEmail);
+   ```
+
+<br><br>
+
+> #### 💡 What is SQl Injection (SQLi) ?
+> - SQL Injection (SQLi) is a type of cyberattack where an attacker inserts (or "injects") malicious SQL code into an input field or a query string.
+> - This code is then executed by the backend database, allowing the attacker to bypass security measures, view private data, modify records, or even gain administrative control over the database.
+> - **How a Basic Attack Works**
+> 
+>   Imagine a login page with a standard SQL query behind it: `SELECT * FROM users WHERE username = '$user' AND password = '$pass'`
+>   - Normal User: Enters `john` and `secret123`.
+>     - *Resulting SQL*: `SELECT * FROM users WHERE username = 'john' AND password = 'secret123'` (Logic works correctly).
+>   - Attacker: Enters `' OR '1'='1` in the username field.
+>     - *Resulting SQL*: `SELECT * FROM users WHERE username = '' OR '1'='1' AND password = '...'`
+>     - *Effect*: Because `'1'='1'` is always true, the database ignores the password check and logs the attacker in as the first user in the database (usually the admin).
+
+
+<br><br>
+**How do you create an immutable class in hibernate?**
+
+An Immutable Entity is a class whose instances can be read from the database but cannot be updated or deleted. This is a powerful optimization for static data like `CountryCodes`, `CurrencyTypes`, or `HistoricalLogs`, as Hibernate can skip Dirty Checking and reduce memory overhead.
+
+1. **How to Create an Immutable Class**
+   - **Using Annotations (Modern Approach)**
+  
+     You use the `@Immutable` annotation from the `org.hibernate.annotations` package. Note that this is a Hibernate-specific annotation, as there is no standard JPA equivalent.
+
+     ```java
+      import org.hibernate.annotations.Immutable;
+      import jakarta.persistence.Entity;
+      import jakarta.persistence.Id;
+
+      @Entity
+      @Immutable // Logic: Tells Hibernate this entity's state will never change
+      public class Currency {
+          @Id
+          private String code;
+          private String name;
+          
+          // Getters only, no Setters (Best Practice)
+      }
+     ```
+
+   - **Using XML Mapping (Legacy)**
+
+      If you are using `.hbm.xml` files, you set the `mutable` attribute to `false` in the `<class>` tag.
+
+      ```xml
+      <class name="com.example.Currency" table="CURRENCY" mutable="false">
+        <id name="code" column="CODE" />
+        <property name="name" column="NAME" />
+      </class>
+      ```
+2. **What happens if you try to change an Immutable Entity?**
+   - **Updates**: If you call a setter (if one exists) and try to save, Hibernate will simply ignore the changes. No SQL `UPDATE` statement will be generated.
+   - **Deletions**: Hibernate will still allow you to delete an immutable entity unless you explicitly handle it via database constraints or application logic.
+   - **Collections**: You can also mark a Collection as immutable using `@Immutable` on the collection field. This prevents adding or removing elements from the association.
+
+
+<br><br>
+**What are the most commonly used annotations available to support hibernate mapping?**
+
+1. **Core Mapping Annotations**
+   - **`@Entity`** : Marks the class as a persistent database entity.
+   - **`@Table`** :	Maps the entity to a specific table name.
+   - **`@Id`** : Defines the Primary Key of the entity.
+   - **`@GeneratedValue`** :	Defines how the ID is created (Auto-increment, Sequence).
+   - **`@Column`** :	Maps a field to a specific column name and constraints.
+   - **`@Transient`** :	Tells Hibernate to ignore this field (not saved in DB).
+
+2. **Relationship Mapping Annotations**
+   - **`@OneToOne`**: A 1-to-1 link (e.g., an Employee has one Passport).
+   - **`@OneToMany`**: One record links to many (e.g., a Department has many Employees).
+   - **`@ManyToOne`**: Many records link to one (e.g., many Employees belong to one Department).
+   - **`@ManyToMany`**: Multiple links on both sides (e.g., Students and Courses). Use with **`@JoinTable`**.
+   - **`@JoinColumn`**: Specifies the column used for joining two tables (the Foreign Key column).
+
+3. **Specialized Hibernate Annotations**
+   
+   While JPA covers the basics, Hibernate-specific annotations (under `org.hibernate.annotations`) provide advanced control.
+
+   - **`@Cascade`**: Defines how operations (like Save or Delete) flow from a parent to a child.
+   - **`@Formula`**: Allows you to calculate a field value using a raw SQL snippet (e.g., @Formula("price * tax")).
+   - **`@Type`**: Used to map custom Java types to specific database types.
+   - **`@DynamicUpdate`**: Ensures that the SQL UPDATE statement only includes columns that have actually changed (optimizes performance).
