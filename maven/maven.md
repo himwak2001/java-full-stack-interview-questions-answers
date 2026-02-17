@@ -2,7 +2,7 @@
 
 **What is Maven ?**
 
-- t is an open-source tool that automates the entire process of converting source code into a finished product (like a JAR or WAR file).
+- It is an open-source tool that automates the entire process of converting source code into a finished product (like a JAR or WAR file).
 - It eliminates the need to manually download libraries. You list what you need in a file, and Maven fetches them and their sub-requirements (Transitive Dependencies) automatically.
 - It handles everything from compiling and testing to packaging and deploying the project.
 - Maven provides a standard project structure. If you follow it, you don't have to write custom scripts to tell Maven where your code or resources are.
@@ -145,3 +145,49 @@
     mvn compile   # Compiles all source files automatically
     mvn package   # Compiles, tests, and creates the JAR file
   ```
+
+
+<br><br>
+**What is Clean, Default, and Site in Maven?**
+
+- **Clean Lifecycle**: Focuses on removing temporary files. It deletes the `target` folder to ensure that old, stale compiled classes do not interfere with the new build.
+- **Default (Build) Lifecycle**: This is the main lifecycle responsible for the entire project build. It handles everything from source code compilation and testing to packaging (creating the JAR) and final deployment.
+- **Site Lifecycle**: Used for generating technical documentation. It creates a dedicated website for the project containing Javadocs, unit test reports, and dependency graphs.
+
+
+<br><br>
+**What is a Maven Repository?**
+
+- Repositories are directories (folders) where Maven stores all the packaged JAR files, plugins, and metadata (POM files).
+- Every JAR in a repository is accompanied by a POM file. This metadata tells Maven the project's identity (GAV) and what other libraries it needs to function.
+- Maven uses these repositories to automatically locate and download the dependencies you list in your `pom.xml`, saving you from manual downloads.
+- **Three Types of Repositories**
+  - **Local Repository**: A folder on your own machine (Default: `~/.m2/repository`).
+  - **Central Repository**: The "Official Market" managed by the Apache Maven community.
+  - **Remote Repository**: A custom repository hosted on a private server (e.g., Nexus or Artifactory).
+
+
+<br><br>
+**What are the different types of Maven Repositories?**
+
+- **Local Repository:**
+  - This is a folder located on your local machine (default: `~/.m2/repository`).
+  - It stores all dependencies (JAR files) that Maven has already downloaded.
+  - **Logic**: Before going to the internet, Maven always checks here first. If it finds the JAR, it uses it immediately to save time and bandwidth.
+- **Central Repository:**
+  - This is a public, web-based repository provided by the Apache Maven community.
+  - It contains a massive collection of most common open-source libraries (e.g., Hibernate, JUnit, Spring).
+  - Logic: If a dependency is missing from your Local Repository, Maven automatically connects to the internet to fetch it from here.
+- **Remote Repository:**
+  - This is a repository hosted on a private server, usually inside a company’s network (e.g., Nexus or Artifactory).
+  - It is used to store internal project JARs that are not available to the public.
+  - Logic: If a company-specific library is needed, Maven downloads it from this server into your Local Repository first, then uses it.
+
+
+<br><br>
+**How does Maven Architecture work?**
+
+- Maven starts by reading the `pom.xml` file. This file contains all the project configurations, dependencies, and build instructions. Without this file, Maven has no "brain" to function.
+- Maven checks the Local Repository (your machine) for the required JARs. If they are missing, it reaches out to the Central Repository (internet) or Remote Repository (company server) to download them into your local folder.
+- Maven executes the requested Lifecycle (e.g., Default). This involves a sequence of Phases (Compile -> Test -> Package). Each phase is powered by Plugins that achieve specific Goals (e.g., the `compiler` plugin has a `compile` goal).
+- Once the lifecycle finishes, Maven generates the final artifact (JAR/WAR) in the `target` folder and produces reports like test results or documentation.
