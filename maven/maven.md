@@ -191,3 +191,81 @@
 - Maven checks the Local Repository (your machine) for the required JARs. If they are missing, it reaches out to the Central Repository (internet) or Remote Repository (company server) to download them into your local folder.
 - Maven executes the requested Lifecycle (e.g., Default). This involves a sequence of Phases (Compile -> Test -> Package). Each phase is powered by Plugins that achieve specific Goals (e.g., the `compiler` plugin has a `compile` goal).
 - Once the lifecycle finishes, Maven generates the final artifact (JAR/WAR) in the `target` folder and produces reports like test results or documentation.
+
+
+<br><br>
+**What are the different phases in the Maven Build Lifecycle?**
+
+- In the Default (Build) Lifecycle, if you execute a specific phase, Maven will automatically execute every phase that comes before it in the sequence.
+- `compile`: Translates the source code of the project from .java to .class files.
+- `test-compile`: Specifically compiles the source code for the test classes (like JUnit or TestNG).
+- `test`: Executes the unit tests using a suitable framework.
+- `package`: Bundles the compiled code into a distributable format, such as a JAR or WAR file.
+- `integration-test`: Processes and deploys the package into an environment where integration tests can be run.
+- `verify`: Runs checks on the results of integration tests to ensure quality criteria are met.
+- `install`: Installs the packaged code into your Local Repository, allowing it to be used as a dependency in other local projects.
+- `deploy`: Copies the final package to a Remote Repository for sharing with other developers and teams.
+- **Programmatic Execution**:
+  ```bash
+  # This command runs: compile -> test-compile -> test -> package
+  mvn package 
+
+  # This command runs everything up to and including 'install'
+  mvn install
+  ```
+- **Flow Diagram**:
+  ```mermaid
+  graph TD
+    A[<b>validate</b><br/>Check if project is correct] --> B
+    B[<b>compile</b><br/>Convert .java to .class] --> C
+    C[<b>test-compile</b><br/>Compile test source code] --> D
+    D[<b>test</b><br/>Run unit tests] --> E
+    E[<b>package</b><br/>Create JAR/WAR file] --> F
+    F[<b>integration-test</b><br/>Run tests in environment] --> G
+    G[<b>verify</b><br/>Check test results] --> H
+    H[<b>install</b><br/>Move JAR to Local Repo] --> I
+    I[<b>deploy</b><br/>Move JAR to Remote Repo]
+
+    style A fill:#f9f,stroke:#333,stroke-width:2px
+    style E fill:#bbf,stroke:#333,stroke-width:2px
+    style H fill:#dfd,stroke:#333,stroke-width:2px
+    style I fill:#fdd,stroke:#333,stroke-width:2px
+  ```
+
+
+<br><br>
+**Which command is used to build a Maven site?**
+
+- `mvn site`: This is the primary command used to generate a dedicated website for your Maven project.
+- **Documentation Generation**: It automates the creation of project reports, including Javadocs, unit test results, and dependency lists.
+- **Default Output Directory**: Once the command finishes, the generated site files are stored in the `target/site/` folder of your project.
+- **Lifecycle Role**: The `site` phase is part of the Site Lifecycle, which is separate from the standard Default (Build) or Clean lifecycles.
+- **Programmatic Execution:**
+  ```bash
+  # Basic site generation
+  mvn site
+
+  # Clean old reports and generate new ones
+  mvn clean site
+  ```
+
+
+<br><br>
+**What are the different conventions used while naming a project in Maven?**
+
+- **Project Identity (GAV)**: Every project in Maven is uniquely identified by three mandatory coordinates: **G**roupId, **A**rtifactId, and **V**ersion.
+- **GroupId**: This represents the organization or group that created the project. It usually follows Java package naming rules (e.g., `org.apache.maven`).
+- **ArtifactId**: This is the name of the specific project or module (e.g., `maven`). It should be unique within the GroupId.
+- **Version**: This identifies the specific release or stage of the project (e.g., `2.0.1`).
+- **Full Name Format**: The complete name is written as `<GroupId>:<ArtifactId>:<Version>`.
+- **Flow Diagram: GAV Hierarchy**
+  ```mermaid
+  graph LR
+    A[<b>GroupId</b><br/>The Organization<br/>'org.apache.maven'] --> B
+    B[<b>ArtifactId</b><br/>The Project Name<br/>'maven'] --> C
+    C[<b>Version</b><br/>The Release Number<br/>'2.0.1']
+    
+    style A fill:#f9f,stroke:#333
+    style B fill:#bbf,stroke:#333
+    style C fill:#dfd,stroke:#333
+  ```
