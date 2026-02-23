@@ -478,3 +478,98 @@ In Maven, the build process is organized into a strict hierarchy of Lifecycles, 
     style B fill:#bbf,stroke:#333
     style C fill:#dfd,stroke:#333
   ```
+
+<br><br>
+**What is the ‘Goal’ in the Maven terminology?**
+
+- A goal refers to a specific, granular task that enables a project to be built and organized.
+- While phases provide the structure, goals are the actual units of work executed by plugins.
+- Phases, which represent stages in the lifecycle, define the specific sequence in which the desired goals are accomplished.
+- A goal can be bound to one or more build phases, or it can be executed individually via the command line without running a full phase.
+- Flow Diagram;
+  ```mermaid
+  graph LR
+    A[<b>Build Lifecycle</b>] --> B[<b>Build Phase</b>]
+    B --> C[<b>Plugin Goal 1</b>]
+    B --> D[<b>Plugin Goal 2</b>]
+    
+    style B fill:#bbf,stroke:#333
+    style C fill:#dfd,stroke:#333
+    style D fill:#dfd,stroke:#333
+  ```
+
+<br><br>
+**What is meant by the term ‘Dependencies and Repositories’ in Maven?**
+
+In Maven, these two concepts work together to manage all the external code your project needs to function.
+
+1. **Dependencies**
+   - Dependencies are the external Java libraries (JAR files) that your project requires to compile and run.
+   - Instead of manually managing files, you declare these libraries in your `pom.xml`. Maven then ensures the correct versions are available.
+   - Maven also automatically handles "dependencies of dependencies," so you don't have to track down every sub-library yourself.
+2. **Repositories**
+   - Repositories are directories or servers that store these packaged JAR files along with their metadata (POM files).
+   - **Local Repository**: A private cache on your own machine where Maven stores everything it has downloaded for quick access.
+   - **Central Repository**: A massive, public online library managed by the Maven community containing most common open-source JARs.
+
+
+<br><br>
+**How dependencies and repositories work together?**
+
+- **Check Local**: When you build a project, Maven first looks for the required Dependencies in your Local Repository.
+- **Download if Missing**: If they are not found locally, Maven automatically connects to the Central Repository (or a configured Remote Repository) to download them.
+- **Cache for Future**: Once downloaded, Maven stores them in your Local Repository so it doesn't have to download them again for future builds.
+- **Flow Diagram**:
+  ```mermaid
+  graph TD
+    A[<b>Project Needs JAR</b>] --> B{<b>Is it in Local Repo?</b>}
+    B -- Yes --> C[Use it immediately]
+    B -- No --> D[<b>Request from Central Repo</b>]
+    D --> E[Download to Local Repo]
+    E --> F[Use for build]
+    
+    style B fill:#f9f,stroke:#333
+    style D fill:#bbf,stroke:#333
+  ```
+
+
+<br><br>
+**What is a ‘Snapshot’ in Maven?**
+
+- A Snapshot refers to a version available in a Maven remote repository that signals the latest development copy of a project.
+- Unlike a "Release" version (which is permanent), a Snapshot indicates that the code is still being actively worked on and can change over time.
+- **Continuous Updates**: The data service team updates the snapshot with new source code in the repository for each Maven build.
+- For every new build, Maven automatically inspects the remote repository to see if a newer version of the Snapshot has been uploaded.
+- **Internal Working**:
+  
+  When you use a version ending in `-SNAPSHOT` (e.g., `1.0-SNAPSHOT`), Maven handles it differently than a standard version:
+
+  ```mermaid
+  graph TD
+    A[<b>Build Start</b>] --> B{<b>Is version a SNAPSHOT?</b>}
+    B -- Yes --> C[Check Remote Repo for latest timestamped version]
+    C --> D[Download if newer version exists]
+    B -- No --> E[Use local version; never check remote again]
+    
+    style C fill:#bbf,stroke:#333
+    style E fill:#dfd,stroke:#333
+  ```
+
+
+<br><br>
+**What is a Maven Archetype?**
+
+- A Maven Archetype is a specific Maven plugin designed to create a project structure based on a predefined template.
+- These archetypes function as project templates that Maven generates whenever a new project is initiated.
+- They help enforce consistency across projects by providing a "best-practice" directory layout and a pre-configured `pom.xml`.
+- By using an archetype, developers avoid the manual setup of folders like `src/main/java` and `src/test/java`, as the plugin scaffolds them automatically.
+- How it Works
+  ```mermaid
+  graph LR
+    A[<b>User Command</b><br/>mvn archetype:generate] --> B[<b>Archetype Plugin</b>]
+    B --> C{<b>Select Template</b><br/>e.g., Spring Boot, Webapp}
+    C --> D[<b>Generated Project</b><br/>Folders + pom.xml]
+    
+    style B fill:#bbf,stroke:#333
+    style D fill:#dfd,stroke:#333
+  ```
