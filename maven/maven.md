@@ -718,3 +718,157 @@ Maven classifies build profiles based on their scope and accessibility. Each typ
     style B fill:#2196F3,color:#fff
     style C fill:#f96,color:#fff
   ```
+
+
+<br><br>
+**What is the ‘Dependency Scope’, and how many types of Dependency Scopes are there?**
+
+Dependency Scope is a configuration in Maven that defines the visibility and availability of a library at different stages of the project lifecycle (compilation, testing, and execution). It helps keep the final build artifact (like a JAR or WAR) lean by excluding unnecessary files.
+
+There are 6 types of dependency scopes:
+
+- **Compile (Default)**: Available in all phases. It is propagated to dependent projects (transitive).
+- **Provided**: Used when you expect the JDK or a Container (like Tomcat) to provide the library at runtime. It is not included in the final package.
+- **Runtime**: Not needed for compilation (e.g., JDBC drivers) but required to run the application.
+- **Test**: Only available for compiling and running unit tests (e.g., JUnit). Not packaged in the final build.
+- **System**: Similar to Provided, but you must point to a specific JAR on your local machine using a hardcoded path. (Avoid using this in professional projects).
+- **Import**: Only used within the `<dependencyManagement>` section to import dependency configurations from another POM.
+- Dependency Lifecycle flow:
+  ```mermaid
+  graph TD
+    subgraph "Phase: Compile"
+    C[Compile Scope]
+    P[Provided Scope]
+    end
+
+    subgraph "Phase: Test"
+    T[Test Scope]
+    C_T[Compile Scope]
+    R_T[Runtime Scope]
+    P_T[Provided Scope]
+    end
+
+    subgraph "Phase: Package/Run"
+    C_R[Compile Scope]
+    R[Runtime Scope]
+    end
+
+    style C fill:#4CAF50,color:#fff
+    style P fill:#2196F3,color:#fff
+    style T fill:#f96,color:#fff
+    style R fill:#9c27b0,color:#fff
+  ```
+
+
+<br><br>
+**What is meant by ‘Transitive Dependency’ in Maven?**
+
+Transitive Dependency is a core feature of Maven that automatically includes the dependencies required by the libraries you are using. It eliminates the "Dependency Hell" where developers had to manually track down and download every sub-library needed by a single JAR.
+
+- If your project (A) depends on Library B, and Library B depends on Library C, Maven automatically pulls in Library C for you.
+- Maven maintains a "Dependency Tree" to visualize these layers of relationships.
+- If two different libraries require different versions of the same sub-dependency, Maven uses the "Nearest Definition" rule (the version closest to the project root in the tree wins).
+- You can use `<exclusions>` to stop a specific transitive dependency from being pulled in if it causes conflicts.
+- Dependency Chain
+  ```mermaid
+  graph TD
+    A[Project A] -- "Direct Dependency" --> B[Library B]
+    B -- "Transitive Dependency" --> C[Library C]
+    C -- "Transitive Dependency" --> D[Library D]
+    
+    subgraph "Your Manual Work"
+    A
+    B
+    end
+
+    subgraph "Maven's Automatic Work"
+    C
+    D
+    end
+
+    style B fill:#4CAF50,color:#fff
+    style C fill:#2196F3,color:#fff
+    style D fill:#2196F3,color:#fff
+  ```
+- If Library B pulls in an old version of Library C that you don't want, you "exclude" it:
+  ```xml
+  <dependency>
+    <groupId>com.example</groupId>
+    <artifactId>library-b</artifactId>
+    <version>2.0</version>
+    <exclusions>
+        <exclusion>
+            <groupId>org.unwanted</groupId>
+            <artifactId>library-c</artifactId>
+        </exclusion>
+    </exclusions>
+  </dependency>
+  ```
+
+
+<br><br>
+**How can a Maven Build Profile be activated?**
+
+A Maven Build Profile can be activated through several triggers, ranging from manual commands to automatic environment detection. This flexibility allows the same project to behave differently on a developer's laptop versus a production server.
+
+- **Explicit Activation**: Using the `-P` flag in the command line (e.g., `mvn clean install -P production`).
+- **Via Maven Settings**: Defining the `<activeProfiles>` section in your `settings.xml` file makes a profile active by default for all your local builds.
+- **Environment Variables**: Triggered when a specific system property is present or has a specific value (e.g., `-Denv=test`).
+- **Profile Activation Flow**:
+  ```mermaid
+  graph TD
+    Start[Build Request] --> Manual{Command Line -P?}
+    Manual -- Yes --> P1[Activate Profile]
+    Manual -- No --> Auto{Automatic Triggers?}
+    
+    Auto -- "Property/ENV" --> P2[Activate Profile]
+    Auto -- "OS/JDK Version" --> P3[Activate Profile]
+    Auto -- "File Exists/Missing" --> P4[Activate Profile]
+    Auto -- "settings.xml" --> P5[Activate Profile]
+
+    style P1 fill:#4CAF50,color:#fff
+    style P2 fill:#2196F3,color:#fff
+    style P3 fill:#2196F3,color:#fff
+    style P4 fill:#2196F3,color:#fff
+    style P5 fill:#f96,color:#fff
+  ```
+
+
+<br><br>
+**What is meant by ‘Dependency Exclusion’?**
+
+Dependency Exclusion is a mechanism used in the pom.xml to tell Maven to ignore a specific transitive dependency that would otherwise be automatically included in your project.
+
+- It is primarily used to resolve version conflicts, such as when two libraries pull in different, incompatible versions of the same third-party JAR.
+- It helps remove unnecessary "bloat" by excluding libraries that your project doesn't actually need for its specific use case.
+- If two different dependencies provide the same classes (like `jakarta.servlet` vs `javax.servlet`), exclusion prevents runtime crashes.
+- The exclusion is specific to the dependency it is defined under; it doesn't globally ban the library from the entire project unless specified everywhere.
+- **The Exclusion Mechanism**
+  ```mermaid
+  graph TD
+    A[Project X] -- "Depends on" --> B[Library Y]
+    B -. "Excluded" .-> C[Library Z]
+
+    %% Styling to show C is inactive
+    style C fill:#ff9999,stroke:#333,stroke-dasharray: 5 5,color:#000
+    style A fill:#4CAF50,color:#fff
+    style B fill:#2196F3,color:#fff
+
+    subgraph Legend
+        Direction["A excludes Z via Y"]
+    end
+  ```
+- In this example, Project X uses `library-y`, but we want to prevent it from bringing in `library-z`.
+  ```xml
+  <dependency>
+    <groupId>com.example</groupId>
+    <artifactId>library-y</artifactId>
+    <version>2.0</version>
+    <exclusions>
+        <exclusion>
+            <groupId>org.unwanted</groupId>
+            <artifactId>library-z</artifactId>
+        </exclusion>
+    </exclusions>
+  </dependency>
+  ```
