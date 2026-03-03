@@ -872,3 +872,150 @@ Dependency Exclusion is a mechanism used in the pom.xml to tell Maven to ignore 
     </exclusions>
   </dependency>
   ```
+
+
+<br><br>
+**What is MOJO?**
+
+A MOJO (Maven Old Java Object) is the smallest executable unit in Maven. If Maven were a machine, MOJOs would be the individual gears that perform specific tasks.
+
+- Every "goal" you run in Maven (like `compiler:compile`) is actually a MOJO.
+- A Maven Plugin is simply a collection of one or more MOJOs. For example, the `maven-compiler-plugin` contains a MOJO for compiling source code and another for compiling test code.
+- MOJOs allow developers to create custom functionality. If Maven doesn't have a built-in way to do something (like uploading a file to a specific server), you can write a MOJO to do it.
+- To create one, a Java class must implement the `org.apache.maven.plugin.Mojo` interface or extend the `AbstractMojo` class.
+- **Relationship: Plugin vs. MOJO**
+  ```mermaid
+  graph TD
+    subgraph "Maven Plugin (The Package)"
+    A[MOJO 1: Goal A]
+    B[MOJO 2: Goal B]
+    C[MOJO 3: Goal C]
+    end
+
+    User[mvn plugin:goal-a] --> A
+    
+    style A fill:#f96,stroke:#333,color:#fff
+    style B fill:#f96,stroke:#333,color:#fff
+    style C fill:#f96,stroke:#333,color:#fff
+  ```
+- Custom Mojo
+  ```java
+  @Mojo(name = "say-hello") // This defines the 'goal' name
+  public class HelloMojo extends AbstractMojo {
+      public void execute() throws MojoExecutionException {
+          getLog().info("Hello, Maven World!");
+      }
+  }
+  ```
+  Run it via: `mvn com.example:my-plugin:say-hello`
+
+
+<br><br>
+**What is the Maven `settings.xml` file?**
+
+The `settings.xml` file is the user-level configuration file for Maven. While the pom.xml describes the project, the settings.xml describes the environment in which Maven is running.
+
+- It exists in two locations: the Maven installation directory (Global) and the `~/.m2/` folder (User). The user-level file is preferred as it doesn't require admin rights.
+- It is the primary place to store sensitive information like server usernames and passwords for deploying artifacts to private repositories (like Nexus or Artifactory).
+- It allows you to define Mirrors, forcing Maven to download dependencies from a local company server instead of the public internet.
+- You can change the default location of the local repository (usually `~/.m2/repository`) to a different drive or folder.
+- **Key Configurations in `settings.xml`**
+  | Element | Purpose |
+  | :--- | :--- |
+  | `<localRepository>` | Sets the path where Maven stores downloaded JARs. |
+  | `<proxies>` | Configures HTTP proxy settings for Maven to access the internet behind a firewall. |
+  | `<servers>` | Stores authentication credentials for remote repositories. |
+  | `<mirrors>` | Redirects requests from one repository to another (e.g., Central to internal Nexus). |
+  | `<profiles>` | Contains environment-specific settings (like DB URLs) that apply across all projects. |
+- **Configuration Snippet:**
+  ```xml
+  <settings>
+    <localRepository>D:/maven_repo</localRepository>
+    
+    <servers>
+      <server>
+        <id>internal-nexus</id>
+        <username>admin</username>
+        <password>encrypt_pass_here</password>
+      </server>
+    </servers>
+  </settings>
+  ```
+- **Relationship Between Files**
+  ```mermaid
+  graph TD
+    A[Project Build] --> B[pom.xml]
+    B -- "Project Info" --> D[Build Result]
+    C[settings.xml] -- "Environmental Info" --> D
+    
+    subgraph "settings.xml content"
+    C1[Credentials]
+    C2[Proxy]
+    C3[Local Repo Path]
+    end
+    
+    style C fill:#f96,stroke:#333,color:#fff
+    style B fill:#2196F3,stroke:#333,color:#fff
+  ```
+
+
+<br><br>
+**What is meant by the term ‘Super POM’?**
+
+The Super POM is Maven's default, internal configuration file. Every project's `pom.xml` implicitly inherits from this file, forming the root of all Maven configurations.
+
+- Just as every class in Java inherits from `java.lang.Object`, every `pom.xml` inherits from the Super POM.
+- It defines the default values (like the Central Repository URL, default plugin versions, and standard directory structures), which is why a very small `pom.xml` can still run a complex build.
+- When your project's `pom.xml` is merged with the Super POM (and any other parent POMs), the result is called the Effective POM.
+- It is physically located inside the `maven-model-builder` JAR file within the Maven installation.
+- **Inheritance Hierarchy**
+  ```mermaid
+  graph TD
+    A[Super POM: The Global Default] --> B[Parent POM: Optional]
+    B --> C[Project POM: Your pom.xml]
+    
+    subgraph "Combined Result"
+    C --> D[Effective POM: The Actual Config Used]
+    end
+    
+    style A fill:#f96,stroke:#333,color:#fff
+    style D fill:#4CAF50,stroke:#333,color:#fff
+  ```
+- You can see what the Super POM contributes to your project by running this command in your terminal:
+  ```bash
+  mvn help:effective-pom
+  ```
+  *This command generates a massive XML showing all the default repositories and plugin configurations you didn't have to write manually.*
+
+
+<br><br>
+**Where are Maven dependencies stored?**
+
+Maven uses a structured storage system to manage dependencies. While the Local Repository is the primary storage on your machine, it acts as the bottom layer of a larger hierarchy
+
+- **Local Repository**: This is a physical folder on your computer. By default, it is located at `~/.m2/repository` (Linux/macOS) or `C:\Users\{your-username}\.m2\repository` (Windows).
+- **The "Download Once" Rule**: Once Maven downloads a dependency (like JUnit) from the internet, it stores it locally. Any other project on your machine needing that same dependency will pull it from here instead of downloading it again.
+- **Artifact Organization**: Files are stored in a strict directory structure based on their coordinates: `groupId / artifactId / version`.
+- You can change the storage location by editing the `<localRepository>` tag in your `settings.xml` file.
+- **The Storage Hierarchy**
+  ```mermaid
+  graph TD
+    Project[Java Project] -->|1. Search| Local[Local Repo: .m2/repository]
+    Local -->|2. Not Found| Remote[Internal Remote Repo: Nexus/Artifactory]
+    Remote -->|3. Not Found| Central[Maven Central: Public Internet]
+    
+    Central -.->|Download & Cache| Local
+    Remote -.->|Download & Cache| Local
+    Local -.->|Provide JAR| Project
+
+    style Local fill:#4CAF50,color:#fff
+    style Remote fill:#2196F3,color:#fff
+    style Central fill:#f96,color:#fff
+  ```
+- If you have a dependency for `junit` with version `4.12`, it will be stored at: `[m2_home]/repository/junit/junit/4.12/junit-4.12.jar`
+- To move your storage to a different drive (e.g., to save space on C:), edit `settings.xml`:
+  ```xml
+  <settings>
+    <localRepository>D:/custom_maven_storage/repository</localRepository>
+  </settings>
+  ```
