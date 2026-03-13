@@ -146,3 +146,169 @@
   - Streaming applications.
   - Microservices communication with reactive APIs.
 - For simple CRUD applications, Spring MVC is usually sufficient.
+
+
+<br><br>
+
+**What do you understand by Dependency Injection?**
+
+- Dependency Injection (DI) is a design pattern where the dependency of a class is provided by an external source instead of creating it inside the class.
+- It helps in removing hard-coded dependencies and makes the application loosely coupled.
+- In Spring, the IoC container (`org.springframework.context.ApplicationContext`) creates objects and injects the required dependencies at runtime.
+- **Without Dependency Injection (Tight Coupling)**
+  - The class creates its dependency itself using `new`.
+  - This makes the code hard to modify and test.
+  ```java
+  // Tight Coupling Example (Without DI)
+
+  public class UserService {
+
+      // Hard-coded dependency
+      private UserRepository repository = new UserRepository();
+
+      public void getUser() {
+          repository.findUser();
+      }
+  }
+
+  class UserRepository {
+      public void findUser() {
+          System.out.println("Fetching user from DB");
+      }
+  }
+  ```
+  - `UserService` is directly dependent on `UserRepository`.
+  - Changing implementation becomes difficult.
+- **With Dependency Injection (Loose Coupling)**
+  - Dependency is provided by Spring container instead of creating it manually.
+  ```java
+  // Dependency Injection using Constructor Injection
+
+  @org.springframework.stereotype.Service
+  public class UserService {
+
+      private final UserRepository repository;
+
+      // Dependency injected by Spring
+      public UserService(UserRepository repository) {
+          this.repository = repository;
+      }
+
+      public void getUser() {
+          repository.findUser();
+      }
+  }
+
+  @org.springframework.stereotype.Repository
+  class UserRepository {
+      public void findUser() {
+          System.out.println("Fetching user from DB");
+      }
+  }
+  ```
+  - Spring creates objects and injects dependencies automatically.
+- **Dependency Resolution**
+  - In normal code → dependency is decided at compile time.
+  - With DI → dependency is resolved at runtime by Spring container.
+- **Benefits of Dependency Injection**
+  - **Loose Coupling** → classes are independent.
+  - **Separation of Concerns** → object creation and business logic are separated.
+  - **Less Boilerplate Code** → framework manages object creation.
+  - **Easy Unit Testing** → dependencies can be replaced with mock objects.
+  - **Configurable Components** → implementations can be changed easily without modifying business logic.
+
+
+<br><br>
+
+**How do you implement DI in Spring Framework?**
+
+- Dependency Injection (DI) in Spring can be implemented using two main approaches:
+  - XML-based configuration
+  - Annotation-based configuration
+- In both cases, the Spring IoC container (`org.springframework.context.ApplicationContext`) creates objects and injects dependencies.
+- XML-Based Dependency Injection
+  - Dependencies are configured in an XML configuration file.
+  - Spring reads the XML file and injects dependencies at runtime.
+  ```xml
+  <!-- beans.xml configuration file -->
+  <beans xmlns="http://www.springframework.org/schema/beans">
+
+      <!-- Defining repository bean -->
+      <bean id="userRepository" class="com.example.repository.UserRepository"/>
+
+      <!-- Injecting dependency into service -->
+      <bean id="userService" class="com.example.service.UserService">
+          <constructor-arg ref="userRepository"/>
+      </bean>
+
+  </beans>
+  ```
+  ```java
+  // Service class
+  package com.example.service;
+
+  public class UserService {
+
+      private UserRepository repository;
+
+      // Constructor for dependency injection
+      public UserService(UserRepository repository) {
+          this.repository = repository;
+      }
+  }
+  ```
+  ```java
+  // Loading Spring container
+  org.springframework.context.ApplicationContext context =
+          new org.springframework.context.support.ClassPathXmlApplicationContext("beans.xml");
+
+  UserService service = context.getBean(UserService.class);
+  ```
+  - XML configuration defines beans and their dependencies.
+  - Spring container creates objects and injects them.
+- Annotation-Based Dependency Injection
+  - Dependencies are injected using annotations instead of XML.
+  - This is the most commonly used approach today.
+  ```java
+  // Repository class
+  @org.springframework.stereotype.Repository
+  public class UserRepository {
+
+      public void findUser() {
+          System.out.println("Fetching user from database");
+      }
+  }
+  ```
+  ```java
+  // Service class with dependency injection
+  @org.springframework.stereotype.Service
+  public class UserService {
+
+      private final UserRepository repository;
+
+      // Constructor injection
+      @org.springframework.beans.factory.annotation.Autowired
+      public UserService(UserRepository repository) {
+          this.repository = repository;
+      }
+  }
+  ```
+  ```java
+  // Configuration class
+  @org.springframework.context.annotation.Configuration
+  @org.springframework.context.annotation.ComponentScan(basePackages = "com.example")
+  public class AppConfig {
+  }
+  ```
+  ```java
+  // Loading Spring container
+
+  org.springframework.context.ApplicationContext context =
+          new org.springframework.context.annotation.AnnotationConfigApplicationContext(AppConfig.class);
+
+  ```
+  - Annotations like `@Service`, `@Repository`, and `@Autowired` help automatically detect and inject beans.
+- **Common Types of DI used in Spring**
+  - **Constructor Injection** → dependency passed through constructor (recommended).
+  - **Setter Injection** → dependency injected through setter method.
+  - **Field Injection** → dependency injected directly into field using @Autowired.
