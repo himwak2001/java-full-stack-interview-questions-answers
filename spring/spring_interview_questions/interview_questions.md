@@ -312,3 +312,418 @@
   - **Constructor Injection** → dependency passed through constructor (recommended).
   - **Setter Injection** → dependency injected through setter method.
   - **Field Injection** → dependency injected directly into field using @Autowired.
+
+
+<br><br>
+
+**Name some of the important Spring Modules.**
+
+- Spring Framework is divided into multiple modules, each designed for a specific purpose.
+- Developers can use only the modules they need, which keeps the application lightweight and flexible.
+- **Spring Core / Spring Context Module**
+  - Provides Dependency Injection (DI) and IoC container.
+  - Responsible for creating and managing beans.
+  - `org.springframework.context.ApplicationContext`
+  ```java
+  // Creating Spring IoC container
+
+  org.springframework.context.ApplicationContext context =
+          new org.springframework.context.annotation.AnnotationConfigApplicationContext(AppConfig.class);
+  ```
+  - The container creates objects and injects dependencies automatically.
+- **Spring AOP Module**
+  - Provides support for Aspect-Oriented Programming.
+  - Used for cross-cutting concerns like:
+    - Logging
+    - Security
+    - Transaction management
+- **Spring DAO Module**
+  - Provides DAO (Data Access Object) abstraction layer.
+  - Simplifies database exception handling.
+  - Converts database exceptions into Spring’s consistent exception hierarchy.
+  - Example:
+    - `org.springframework.dao.DataAccessException`. This helps in handling database errors easily.
+- **Spring JDBC Module**
+  - Simplifies JDBC database operations.
+  - Provides `org.springframework.jdbc.core.JdbcTemplate` to remove boilerplate code.
+  ```java
+  // Using JdbcTemplate for database query
+
+  @org.springframework.beans.factory.annotation.Autowired
+  private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
+
+  public int countUsers() {
+      return jdbcTemplate.queryForObject(
+          "SELECT COUNT(*) FROM users",
+          Integer.class
+      );
+  }
+
+  ```
+  - `JdbcTemplate` removes repetitive code like opening/closing connections and exception handling.
+- **Spring ORM Module**
+  - Provides integration with ORM frameworks such as:
+    - Hibernate
+    - JPA
+    - MyBatis
+  - Examples:
+    - `org.springframework.orm.jpa.JpaTransactionManager`. Helps manage transactions and session handling easily.
+- **Spring Web Module**
+  - Provides basic support for web-based applications.
+  - Includes features such as:
+    - File upload
+    - Web application context
+    - Integration with web frameworks
+  - Examples:
+    - `org.springframework.web.context.WebApplicationContext`
+- **Spring MVC Module**
+  - Provides Model-View-Controller architecture for building web applications and REST APIs.
+  - Separates:
+    - **Model** → business logic
+    - **View** → UI
+    - **Controller** → request handling
+  ```mermaid
+  flowchart LR
+    A[Client Request] --> B[Controller]
+    B --> C[Service / Model]
+    C --> D[View or JSON Response]
+  ```
+
+
+<br><br>
+
+**What do you understand by Aspect-Oriented Programming?**
+
+- **Aspect-Oriented Programming (AOP)** is a programming technique used to separate cross-cutting concerns from business logic.
+- Cross-cutting concerns are functionalities that are required in multiple parts of the application, such as:
+  - Logging
+  - Transaction management
+  - Security
+  - Authentication
+  - Data validation
+- In Object-Oriented Programming (OOP), modularity is achieved using classes.
+- In AOP, modularity is achieved using Aspects.
+- **Problem without AOP**
+  - Cross-cutting logic (like logging) must be called manually in every class.
+  - This creates tight coupling and code duplication.
+  ```java
+  // Without AOP (Logging inside business logic)
+
+  public class UserService {
+
+      public void createUser() {
+          System.out.println("Logging: createUser method called"); // logging code
+          System.out.println("Creating user...");
+      }
+  }
+  ```
+  - Logging code is mixed with business logic.
+- **Solution with AOP**
+  - Logging logic is written in a separate Aspect class.
+  - Spring automatically executes it when the target method runs.
+  ```mermaid
+  flowchart LR
+    A[Client Call] --> B[Aspect - Logging]
+    B --> C[Business Method]
+  ```
+  - Aspect runs before or after the business method automatically.
+  - Business classes remain clean and focused on logic.
+- **Example of Spring AOP**
+  ```java
+  // Aspect class
+
+  @org.aspectj.lang.annotation.Aspect
+  @org.springframework.stereotype.Component
+  public class LoggingAspect {
+
+      // Advice executed before method
+      @org.aspectj.lang.annotation.Before("execution(* com.example.service.*.*(..))")
+      public void logBefore() {
+          System.out.println("Logging before method execution");
+      }
+  }
+  ```
+  ```java
+  // Business class
+
+  @org.springframework.stereotype.Service
+  public class UserService {
+
+      public void createUser() {
+          System.out.println("User created");
+      }
+  }
+  ```
+  - The logging method runs automatically before service methods.
+- **Flow:**
+  ```mermaid
+  flowchart TD
+    A[Client Request] --> B[Spring AOP Proxy]
+    B --> C[Logging Aspect]
+    C --> D[Business Method Execution]
+  ```
+  - Spring creates a proxy around the target object.
+  - The proxy executes aspects before/after the actual method.
+
+
+<br><br>
+
+**What is Aspect, Advice, Pointcut, JointPoint and Advice Arguments in AOP?**
+
+- **Aspect:**
+  - An Aspect is a class that contains cross-cutting logic such as logging, security, or transaction management.
+  - It is applied to different parts of the application without modifying business classes.
+  - In Spring, a class becomes an aspect using the annotation `@org.aspectj.lang.annotation.Aspect`.
+  ```java
+  // Aspect class
+
+  @org.aspectj.lang.annotation.Aspect
+  @org.springframework.stereotype.Component
+  public class LoggingAspect {
+
+      // advice will be written here
+  }
+  ```
+  - The aspect class contains advice methods that run automatically.
+- **Advice**
+  - Advice is the actual action executed when a joint point is reached.
+  - It defines what should happen when a specific method is executed.
+  - **Common advice types:**
+    - **`@Before`** → runs before method execution
+    - **`@After`** → runs after method execution
+    - **`@AfterReturning`** → runs after successful execution
+    - **`@AfterThrowing`** → runs when exception occurs
+    - **`@Around`** → runs before and after method execution
+  ```java
+  // Advice example
+
+  @org.aspectj.lang.annotation.Before("execution(* com.example.service.*.*(..))")
+  public void logBeforeMethod() {
+      System.out.println("Logging before method execution");
+  }
+  ```
+  - This advice runs before any method in the service package.
+- **Pointcut**
+  - A Pointcut defines where the advice should be applied.
+  - It uses AspectJ expression syntax to match specific methods.
+  ```java
+  // Pointcut expression
+
+  @org.aspectj.lang.annotation.Pointcut(
+      "execution(* com.example.service.*.*(..))"
+  )
+  public void serviceMethods() {}
+  ```
+  - The pointcut selects all methods inside `com.example.service` package.
+- **Join Point**
+  - A Join Point is a specific point in program execution.
+  - Example:
+    - Method execution
+    - Exception handling
+    - Object field modification
+  - In Spring AOP, a join point is always method execution.
+  ```java
+  // JoinPoint object example
+
+  @Before("execution(* com.example.service.*.*(..))")
+  public void logMethod(JoinPoint joinPoint) {
+
+      // Getting method name
+      String methodName = joinPoint.getSignature().getName();
+
+      System.out.println("Executing method: " + methodName);
+  }
+  ```
+  - `org.aspectj.lang.JoinPoint` provides method details at runtime.
+- **Advice Arguments**
+  - Advice methods can receive parameters from the target method.
+  - This is done using the `args()` expression in pointcut.
+  ```java
+  // Target class
+
+  @Service
+  public class UserService {
+
+      public void createUser(String name) {
+          System.out.println("Creating user: " + name);
+      }
+  }
+  ```
+  ```java
+  // Advice receiving argument
+
+  @Before(
+      "execution(* com.example.service.UserService.createUser(..)) && args(name)"
+  )
+  public void logUser(String name) {
+      System.out.println("User name passed: " + name);
+  }
+
+  ```
+  - The `args(name)` expression captures the method argument.
+- **Flow**
+  ```mermaid
+  flowchart LR
+    A[Client Call] --> B[Join Point - Method Execution]
+    B --> C[Pointcut Matches Method]
+    C --> D[Advice Executes]
+    D --> E[Business Method Runs]
+  ```
+  - **Join point** → location where method runs.
+  - **Pointcut** → rule that selects the join point.
+  - **Advice** → action executed at that point.
+
+
+<br><br>
+
+**What is Spring IOC Container?**
+
+- **Spring IoC Container** is the core component of the Spring Framework responsible for creating, configuring, and managing objects (beans).
+- It implements the **Inversion of Control (IoC)** principle, where:
+  - Object creation and dependency management are handled by the container instead of the application code.
+- The container injects dependencies into objects at runtime, making the application loosely coupled and flexible.
+- **Main Responsibilities of Spring IoC Container**
+  - Create and manage Spring Beans.
+  - Inject dependencies between beans.
+  - Manage bean lifecycle.
+  - Provide configuration through XML, annotations, or Java classes.
+  - Example package locations:
+    - `org.springframework.beans`
+    - `org.springframework.context`
+- **Flow**
+  ```mermaid
+  flowchart LR
+    A[Configuration Metadata<br>XML / Annotation / Java Config] --> B[Spring IoC Container]
+    B --> C[Create Beans]
+    B --> D[Inject Dependencies]
+    B --> E[Manage Bean Lifecycle]
+    C --> F[Application Uses Beans]
+  ```
+  - The container reads configuration metadata.
+  - The container reads configuration metadata.
+- **Common IoC Container Implementations**
+  - **`org.springframework.context.annotation.AnnotationConfigApplicationContext`**
+    - Used for standalone Java applications with annotation-based configuration.
+    ```java
+    org.springframework.context.ApplicationContext context =
+        new org.springframework.context.annotation.AnnotationConfigApplicationContext(AppConfig.class);
+    ```
+  - **`org.springframework.context.support.ClassPathXmlApplicationContext`**
+    - Used when configuration is defined in XML files located in the classpath.
+    ```java
+    org.springframework.context.ApplicationContext context =
+        new org.springframework.context.support.ClassPathXmlApplicationContext("beans.xml");
+    ```
+  - **`org.springframework.context.support.FileSystemXmlApplicationContext`**
+    - Similar to `ClassPathXmlApplicationContext`, but XML configuration file can be loaded from any location in the file system.
+    ```java
+    org.springframework.context.ApplicationContext context =
+        new org.springframework.context.support.FileSystemXmlApplicationContext("config/beans.xml");
+    ```
+  - **Web Application Containers**
+    - Used for Spring-based web applications.
+    - Examples:
+      - `org.springframework.web.context.support.AnnotationConfigWebApplicationContext`
+      - `org.springframework.web.context.support.XmlWebApplicationContext`
+      - These containers integrate Spring with web servers like Tomcat.
+
+
+
+<br><br>
+
+**What is a Spring Bean?**
+
+- A Spring Bean is a normal Java object that is created and managed by the Spring IoC Container.
+- When the Spring container (`org.springframework.context.ApplicationContext`) creates an object, that object is called a Spring Bean.
+- Spring beans are used throughout the application and dependencies between beans are automatically injected by the container.
+- **How a Spring Bean is Created**
+  - Define a class.
+  - Mark it with Spring annotations or configure it in XML.
+  - The Spring IoC container initializes and manages it.
+  ```java
+  // A simple Spring Bean
+
+  @Service
+  public class UserService {
+
+      public void getUser() {
+          System.out.println("User fetched");
+      }
+  }
+
+  ```
+  - The UserService class becomes a Spring Bean because Spring container manages it.
+- **Getting a Spring Bean from IoC Container**
+  ```java
+  // Creating Spring IoC container
+
+  org.springframework.context.ApplicationContext context =
+          new org.springframework.context.annotation.AnnotationConfigApplicationContext(AppConfig.class);
+
+  // Getting bean instance
+  UserService userService = context.getBean(UserService.class);
+
+  // Calling method
+  userService.getUser();
+
+  ```
+  - `getBean()` method retrieves the Spring Bean from the container.
+- **Flow**
+  ```mermaid
+  flowchart LR
+    A[Java Class] --> B[Spring IoC Container]
+    B --> C[Spring Bean Created]
+    C --> D[Dependency Injection]
+    D --> E[Application Uses Bean]
+
+  ```
+  - Spring container creates and manages bean objects.
+  - Dependencies between beans are automatically injected.
+
+
+<br><br>
+
+**What is the importance of Spring bean Configuration file?**
+
+- Spring Bean Configuration File is used to define and configure Spring Beans that will be managed by the Spring IoC container.
+- It tells the Spring container which classes to create as beans and how their dependencies should be injected.
+- When the Spring container (`org.springframework.context.ApplicationContext`) starts, it reads this configuration file and initializes all beans.
+- **Example: Spring Bean XML Configuration**
+  ```xml
+  <!-- beans.xml -->
+
+  <beans xmlns="http://www.springframework.org/schema/beans">
+
+      <!-- Defining repository bean -->
+      <bean id="userRepository" class="com.example.repository.UserRepository"/>
+
+      <!-- Injecting dependency into service -->
+      <bean id="userService" class="com.example.service.UserService">
+          <constructor-arg ref="userRepository"/>
+      </bean>
+
+  </beans>
+  ```
+  - `userRepository` and `userService` are Spring Beans defined in XML.
+- **Loading the Configuration File**
+  ```java
+  // Loading Spring container using XML configuration
+
+  org.springframework.context.ApplicationContext context =
+          new org.springframework.context.support.ClassPathXmlApplicationContext("beans.xml");
+
+  // Getting bean from container
+  UserService service = context.getBean(UserService.class);
+
+  ```
+  - The container reads the XML file and creates beans automatically.
+- **Flow**
+  ```mermaid
+  flowchart LR
+    A[beans.xml Configuration] --> B[Spring ApplicationContext]
+    B --> C[Create Beans]
+    B --> D[Inject Dependencies]
+    C --> E[Beans Ready to Use]
+  ```
+  - Spring reads bean definitions from XML.
+  - Then it creates and manages bean objects.
