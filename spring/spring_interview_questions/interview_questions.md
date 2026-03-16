@@ -727,3 +727,244 @@
   ```
   - Spring reads bean definitions from XML.
   - Then it creates and manages bean objects.
+
+
+<br><br>
+
+**What are different ways to configure a class as a Spring Bean?**
+
+1. **XML Configuration**
+   - Uses the `<bean>` tag within an XML file.
+   - Useful for legacy projects or when you don't have access to the library's source code to add annotations.
+   - **Example:**
+      ```xml
+      <bean id="myService" class="com.example.services.MyServiceImpl">
+          <property name="repository" ref="myRepository" />
+      </bean>
+      ```
+2. **Java-Based Configuration**
+   - Type-safe and allows for programmatic logic during bean creation (e.g., `if-else` blocks for different environments).
+   - Centralizes configuration in a few Java classes rather than scattered XML files.
+   - **Example:**
+      ```java
+      package com.example.config;
+
+      import org.springframework.context.annotation.Bean;
+      import org.springframework.context.annotation.Configuration;
+
+      @Configuration
+      public class AppConfig {
+          @Bean
+          public MyService myService() {
+              // Programmatic instantiation
+              return new MyServiceImpl();
+          }
+      }
+      ```
+3. **Annotation-Based (Component Scan)**
+   - The most common modern approach; uses "Stereotypes" to mark classes as beans.
+   - Requires `org.springframework.context.annotation.ComponentScan` to tell Spring where to look.
+   - **Key Annotations:**
+     - `@Component`: Generic bean.
+     - `@Service`: Service layer (business logic).
+     - `@Repository`: DAO layer (exception translation).
+     - `@Controller`: Presentation layer (Web/MVC).
+   - **Example:**
+      ```java
+      package com.example.services;
+
+      import org.springframework.stereotype.Service;
+
+      @Service // Spring detects this automatically via Component Scanning
+      public class MyServiceImpl implements MyService {
+          // Logic here
+      }
+      ```
+4. **Bean Configuration Workflow**
+   ```mermaid
+   graph TD
+    A[Configuration Source] --> B{Spring Container}
+    B --> C[Bean Definition]
+    B --> D[Dependency Injection]
+    B --> E[Ready-to-use Bean]
+    
+    subgraph Sources
+    S1[XML: bean tag]
+    S2[Java: @Bean method]
+    S3[Annotation: @Component]
+    end
+    
+    S1 -.-> A
+    S2 -.-> A
+    S3 -.-> A
+   ```
+   - **Sources:** Metadata is gathered from XML files, Java classes, or scanned packages.
+   - **Container:** org.springframework.context.ApplicationContext processes this metadata to manage the bean lifecycle.
+      
+
+<br><br>
+
+**What are the different scopes on Spring Bean?**
+
+- **`singleton` (Default):** Spring creates exactly one instance of the bean per `org.springframework.context.ApplicationContext`. All requests for that bean return the same shared instance.
+- **`prototype`:** A new instance is created every single time the bean is requested from the container (e.g., via `getBean()` or injection).
+- **`request`:** A new bean instance is created for each HTTP request. Only valid in web-aware Spring contexts.
+- **`session`:** A bean instance is created for the lifecycle of an HTTP Session.
+- **`application`:** A bean is scoped to the lifecycle of a `javax.servlet.ServletContext` (one instance per web application).
+- **`websocket`:** Scoped to the lifecycle of a WebSocket session.
+- **Scope Lifecycle Visualization**
+  ```mermaid
+  graph LR
+    subgraph Singleton
+    S1[Request A] --> Instance1((Bean Instance))
+    S2[Request B] --> Instance1
+    end
+
+    subgraph Prototype
+    P1[Request A] --> Instance2((New Bean))
+    P2[Request B] --> Instance3((New Bean))
+    end
+    
+    subgraph Web_Request
+    W1[HTTP Req 1] --> Instance4((Req Bean 1))
+    W2[HTTP Req 2] --> Instance5((Req Bean 2))
+    end
+  ```
+  - **Singleton:** Shared instance; efficiency is high but state management requires thread-safety.
+  - **Prototype:** Independent instances; Spring handles creation but does not call the destruction lifecycle callbacks.
+  - **Request:** Short-lived; strictly tied to the individual user interaction.
+- **Code Implementation:**
+  ```java
+  import org.springframework.context.annotation.Bean;
+  import org.springframework.context.annotation.Configuration;
+  import org.springframework.context.annotation.Scope;
+  import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+
+  @Configuration
+  public class ProjectConfig {
+
+      @Bean
+      // Using FQCN constant for singleton
+      @Scope(value = ConfigurableBeanFactory.SCOPE_SINGLETON)
+      public MyService myService() {
+          return new MyServiceImpl();
+      }
+
+      @Bean
+      @Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+      public MyTask myTask() {
+          return new MyTask();
+      }
+  }
+  ```
+
+
+<br><br>
+
+**What is the Spring Bean's life cycle?**
+
+The Spring Bean lifecycle represents the series of steps a bean goes through from its instantiation (creation) to its destruction (cleanup) by the `org.springframework.context.ApplicationContext`.
+
+- **Instantiation:** The container creates an instance of the bean using its constructor.
+- **Populate Properties:** Spring injects all defined dependencies (via `@Autowired` or XML setters).
+- **Awareness Interfaces:** If the bean implements interfaces like `org.springframework.beans.factory.BeanNameAware`, Spring injects the container's internal metadata.
+- **BeanPostProcessor (Before Initialization):**`postProcessBeforeInitialization()` is called for any custom logic before the bean is officially "ready."
+- **Initialization Callbacks:**
+  - **`@PostConstruct`:** The modern, preferred annotation-based approach.
+  - **`InitializingBean`:** Implementing the `afterPropertiesSet()` method.
+  - **Custom `init-method`:** Defined in XML or `@Bean(initMethod="...")`.
+- **BeanPostProcessor (After Initialization):** `postProcessAfterInitialization()` is called; this is often where AOP Proxies are created.
+- **Destruction Callbacks:**
+  - **`@PreDestroy`:** Annotation-based cleanup.
+  - **`DisposableBean`:** Implementing the destroy() method.
+  - **Custom `destroy-method`:** Defined in configuration.
+- **Lifecyle Workflow diagram:**
+  ```mermaid
+  graph TD
+    A[1. Instantiation] --> B[2. Populate Properties]
+    B --> C[3. Awareness Interfaces]
+    C --> D[4. BeanPostProcessor - Pre]
+    D --> E[5. Custom Init Methods]
+    E --> F[6. BeanPostProcessor - Post]
+    F --> G[7. Bean is Ready]
+    G --> H[8. Destruction Callbacks]
+    
+    style A fill:#f9f,stroke:#333
+    style G fill:#9f9,stroke:#333
+    style H fill:#f66,stroke:#333
+  ```
+  - **Initialization Phase:** This covers steps 1 through 6, ensuring the bean is fully configured and validated before use.
+- **Destruction Phase:** Triggered when the container is closed, allowing for resource cleanup (e.g., closing DB connections).
+
+
+<br><br>
+
+**How to get `ServletContext` and `ServletConfig` object in a Spring Bean?**
+
+There are two primary ways to access these web-container-specific objects within a Spring bean. Both methods require the application to be running in a Web-aware ApplicationContext.
+
+1. **Using `@Autowired` (Modern Approach)**
+   - The simplest and most common method in modern Spring/Spring Boot applications.
+   - Spring automatically resolves these types if the bean is managed within a `WebApplicationContext`.
+    ```java
+    package com.example.controller;
+
+    import org.springframework.beans.factory.annotation.Autowired;
+    import org.springframework.stereotype.Component;
+    import javax.servlet.ServletContext;
+    import javax.servlet.ServletConfig;
+
+    @Component
+    public class WebHelperBean {
+
+        @Autowired
+        private ServletContext servletContext; // Global application context
+
+        @Autowired(required = false)
+        private ServletConfig servletConfig; // Only available in Controller/Servlet scope
+
+        public void printInfo() {
+            System.out.println("Context Path: " + servletContext.getContextPath());
+        }
+    }
+    ```
+2. **Implementing Aware Interfaces (Classic Approach)**
+   - The bean implements specific interfaces to receive callbacks from the container.
+   - This is "Spring-aware," meaning the class becomes explicitly coupled to Spring's API.
+    ```java
+    package com.example.service;
+
+    import org.springframework.web.context.ServletContextAware;
+    import org.springframework.web.context.ServletConfigAware;
+    import javax.servlet.ServletContext;
+    import javax.servlet.ServletConfig;
+
+    public class LegacyWebBean implements ServletContextAware, ServletConfigAware {
+
+        private ServletContext context;
+        private ServletConfig config;
+
+        @Override
+        public void setServletContext(ServletContext servletContext) {
+            this.context = servletContext; // Spring calls this during bean initialization
+        }
+
+        @Override
+        public void setServletConfig(ServletConfig servletConfig) {
+            this.config = servletConfig;
+        }
+    }
+    ```
+3. **Retrieval Mechanism Workflow**
+   ```mermaid
+   graph LR
+    A[Web Container] --> B[ServletContext]
+    A --> C[ServletConfig]
+    B --> D{Spring Context}
+    C --> D
+    D --> E[Spring Bean]
+    
+    style E fill:#fff4dd,stroke:#d4a017
+   ```
+   - **ServletContext:** Shared across the entire web application (global).
+   - **ServletConfig:** Specific to a single `org.springframework.web.servlet.DispatcherServlet` instance.
