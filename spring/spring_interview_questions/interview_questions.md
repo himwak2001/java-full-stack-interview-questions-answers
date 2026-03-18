@@ -968,3 +968,151 @@ There are two primary ways to access these web-container-specific objects within
    ```
    - **ServletContext:** Shared across the entire web application (global).
    - **ServletConfig:** Specific to a single `org.springframework.web.servlet.DispatcherServlet` instance.
+
+
+<br><br>
+
+**What is Bean wiring and @Autowired annotation?**
+
+- The process of creating associations between application components (Beans) within the Spring container. It is essentially Dependency Injection (DI) in action—telling Spring which bean needs which dependency.
+- Manual wiring is done via XML `(<property ref="...">)` or Java Config. Auto-wiring allows Spring to resolve and inject collaborating beans into your bean automatically.
+- **`@Autowired`:** A Spring annotation used to mark a dependency that the container should fulfill. It primarily works byType. If multiple beans of the same type exist, Spring uses byName or `@Qualifier` to resolve the conflict.
+- **Wiring Mechanism Workflow**
+  ```mermaid
+  graph TD
+    A[Bean Definition Registry] --> B{Dependency Match?}
+    B -- Yes: Single Match --> C[Inject Bean]
+    B -- Yes: Multiple Matches --> D{Check @Qualifier / Name}
+    B -- No --> E{Is required=false?}
+    D -- Match Found --> C
+    D -- No Match --> F[Throw NoUniqueBeanDefinitionException]
+    E -- Yes --> G[Leave as Null]
+    E -- No --> H[Throw NoSuchBeanDefinitionException]
+    
+    style C fill:#d4edda,stroke:#28a745
+    style F fill:#f8d7da,stroke:#dc3545
+    style H fill:#f8d7da,stroke:#dc3545
+  ```
+  - **Resolution Process:** Spring first looks for a bean of the exact class/interface type.
+  - **Fail-Fast:** If Spring cannot find a dependency, it fails at startup unless explicitly told otherwise.
+- **Miscellneous Points:**
+  - **`required` attribute:** By default, `@Autowired(required = true)`. If set to `false`, Spring will not throw an exception if the bean is missing; the field will simply remain `null`.
+  - **Enabling Autowiring:**
+    - **In XML:** Use `<context:annotation-config />`.
+    - **In Java Config:** Using `@org.springframework.context.annotation.ComponentScan` automatically enables it.
+  - **Self-Injection:** Using `@Autowired` on a field of the same class type is generally a "code smell" and can cause circular dependency issues.
+
+
+<br><br>
+
+**What are different types of Spring Bean autowiring?**
+
+Spring provides several strategies to automatically resolve and inject dependencies. While modern development favors annotations, understanding the XML-based "modes" is crucial for interviews.
+
+1. **`autowire="byName"`**
+   - Spring looks for a bean with the exact same ID as the property name in the class.
+   - **Example:** If your class has a field `private MyService myService;`, Spring looks for a bean defined with id="myService".
+2. **`autowire="byType"`**
+   - Spring looks for a bean that matches the Class or Interface type of the property.
+   - **Constraint:** If more than one bean of the same type exists, Spring throws a `NoUniqueBeanDefinitionException`.
+3. **`autowire="constructor"`**
+   - Similar to `byType` but applies to constructor arguments.
+   - Spring searches for beans matching the types of the parameters in the bean's constructor.
+4. **`@Autowired` and `@Qualifier` (Annotation-driven)**
+   - The modern standard. It uses `byType` by default.
+   - **`@Qualifier`:** Used alongside `@Autowired` to specify the exact bean name when multiple beans of the same type exist (resolving ambiguity).
+
+
+<br><br>
+
+**Does Spring Bean provide thread safety?**
+
+- Spring beans are not thread-safe by default. Because the default scope is `singleton`, every thread in your application sharing that bean accesses the same instance.
+- If a singleton bean has mutable instance variables (state), multiple threads can modify them simultaneously, leading to "Race Conditions" and data inconsistency.
+- Most Spring beans (like `@Service` or `@Repository`) are thread-safe only because they are stateless—they only contain logic and no shared data members.
+- **How to Achieve Thread Safety**
+  - **Keep Beans Stateless:** Don't use instance variables to store user-specific data. Use local variables inside methods instead.
+  - Use `prototype`, `request`, or `session` scopes so threads don't share the same object.
+  - Use Java's `synchronized` keyword or `java.util.concurrent.locks.ReentrantLock` (not recommended as it hurts performance).
+  - Use `java.lang.ThreadLocal` to store data that is unique to the current thread.
+- **Code Comparison:**
+  - **Unsafe Singleton (Shared State)**
+    ```java
+    @org.springframework.stereotype.Service
+    public class CounterService {
+        private int count = 0; // DANGER: Shared across all threads
+
+        public void increment() {
+            count++; // Race condition occurs here
+        }
+    }
+    ```
+  - **Safe Singleton (No State)**
+    ```java
+    @org.springframework.stereotype.Service
+    public class CalculationService {
+        public int add(int a, int b) {
+            int result = a + b; // SAFE: Local variable is on the thread stack
+            return result;
+        }
+    }
+    ```
+  - **Safe Prototype (New Instance)**
+    ```java
+    @org.springframework.stereotype.Component
+    @org.springframework.context.annotation.Scope("prototype")
+    public class UserTask {
+        private String status; // SAFE: Each request gets a fresh object
+    }
+    ```
+- **Thread Access Visualization**
+  ```mermaid
+  graph TD
+    subgraph Singleton_Scope
+    T1[Thread 1] --> S((Shared Bean Instance))
+    T2[Thread 2] --> S
+    T3[Thread 3] --> S
+    S --- State[Shared Variable: count++]
+    end
+
+    subgraph Prototype_Scope
+    T4[Thread 4] --> P1((New Bean Instance A))
+    T5[Thread 5] --> P2((New Bean Instance B))
+    end
+
+    style S fill:#f8d7da,stroke:#dc3545
+    style P1 fill:#d4edda,stroke:#28a745
+    style P2 fill:#d4edda,stroke:#28a745
+  ```
+  - **Singleton Risk:** Multiple threads "collide" on the same memory address of the shared variable.
+  - **Prototype Safety:** Each thread gets its own isolated instance, preventing data leakage between threads.
+
+
+<br><br>
+
+**What is a Controller in Spring MVC?**
+
+- A Controller acts as a Coordinator. It intercept incoming client requests (HTTP), processes the input, calls the business logic (Service layer), and returns a response (View or Data).
+- **DispatcherServlet (Front Controller):** The "Main Entry Point." It receives every request first and delegates it to the specific Controller that matches the URL.
+- **`@Controller` Annotation:** Used to mark a class as a web requester handler. Spring's `org.springframework.context.annotation.ClassPathBeanDefinitionScanner` detects these during a component scan.
+- **`@RequestMapping`:** Maps a specific URL or HTTP method (GET, POST, etc.) to a specific method inside the Controller.
+- **Spring MVC Request Flow**
+  ```mermaid
+  sequenceDiagram
+    participant C as Client (Browser)
+    participant DS as DispatcherServlet
+    participant H as HandlerMapping
+    participant CO as Controller
+    participant V as ViewResolver
+
+    C->>DS: 1. Sends HTTP Request
+    DS->>H: 2. Which Controller handles this URL?
+    H-->>DS: 3. Return Controller Info
+    DS->>CO: 4. Execute Method
+    CO-->>DS: 5. Return ModelAndView
+    DS->>V: 6. Resolve View Name to Page
+    V-->>DS: 7. Return JSP/Thymeleaf
+    DS-->>C: 8. Return Final HTML Response
+  ```
+  - **DispatcherServlet:** Centralizes the logic so individual controllers don't have to handle low-level HTTP details.
+  - **HandlerMapping:** The "Map" that tells the DispatcherServlet which `@Controller` owns which URL.
