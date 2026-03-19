@@ -1116,3 +1116,87 @@ Spring provides several strategies to automatically resolve and inject dependenc
   ```
   - **DispatcherServlet:** Centralizes the logic so individual controllers don't have to handle low-level HTTP details.
   - **HandlerMapping:** The "Map" that tells the DispatcherServlet which `@Controller` owns which URL.
+
+
+<br><br>
+
+**What’s the difference between `@Component`, `@Controller`, `@Repository` & `@Service` annotations in Spring?**
+
+- **Stereotype Annotations in Spring**
+  - **`@org.springframework.stereotype.Component`:** 
+    - The root/generic annotation. Any class marked with this becomes a Spring-managed bean during a component scan.
+    - Generic bean; used when the class doesn't fit a specific layer (e.g., Utils).
+  - **`@org.springframework.stereotype.Controller`:** 
+    - A specialized version of `@Component` used in the Presentation Layer. It identifies classes that handle HTTP requests in Spring MVC.
+    - Works with `HandlerMapping` to resolve web URIs.
+  - **`@org.springframework.stereotype.Service`:** 
+    - A specialized version of `@Component` used in the Business Layer. It identifies classes that hold business logic and coordinates calls to repositories.
+    - Strictly for business logic; no extra behavior over `@Component`.
+  - **`@org.springframework.stereotype.Repository`:** 
+    - A specialized version of `@Component` used in the Data Access Layer (DAO). It provides an additional feature: automatic exception translation (converting low-level SQL/JPA exceptions into Spring's DataAccessException).
+- **Annotation Hierarchy and Layering**
+  ```mermaid
+  graph TD
+    A["Component (Generic Root)"] --> B["Controller - Web Layer"]
+    A --> C["Service - Business Layer"]
+    A --> D["Repository - Data Layer"]
+
+    subgraph Layers
+        L1["User Interface / API"] --- B
+        L2["Business Logic / Processing"] --- C
+        L3["Database / Persistence"] --- D
+    end
+
+    style A fill:#f9f,stroke:#333
+    style B fill:#fff4dd,stroke:#d4a017
+    style C fill:#d4edda,stroke:#28a745
+    style D fill:#d1ecf1,stroke:#0c5460
+  ```
+  - **Specialization:** While all these annotations register a bean in the container, the specific names provide semantic meaning to developers and tools (like AOP logging or monitoring).
+  - **Layering:** These annotations encourage the Separation of Concerns by clearly defining the role of each class in a 3-tier architecture.
+- **Why use specialized annotations instead of just `@Component`?**
+  - **Readability:** Developers immediately know the purpose of the class.
+  - **Tooling/AOP:** You can easily target all `@Service` beans for performance monitoring or all `@Repository` beans for transaction logging using Aspect-Oriented Programming (AOP).
+  - **Persistence Exception Translation:** Only `@Repository` provides the automated conversion of complex SQL errors into a readable Spring hierarchy.
+
+
+<br><br>
+
+**What is `DispatcherServlet` and `ContextLoaderListener`?**
+
+In a Spring MVC application, these two components work together to manage the Web Application Context and handle client requests.
+
+1. **DispatcherServlet (The Front Controller)**
+   - Acts as the Central Entry Point for all incoming HTTP requests.
+   - This is the "Front-End Specialist." It starts second and loads "Web" beans (Controllers, ViewResolvers) that are only needed to handle HTTP requests.
+   - **Responsibilities:**
+     - Receives the request and finds the right `@Controller` using HandlerMapping.
+     - Dispatches the request to the controller method.
+     - Resolves the view (JSP/Thymeleaf) and returns the final response to the client.
+2. **ContextLoaderListener (The Root Listener)**
+   - A `javax.servlet.ServletContextListener` that starts when the web container (like Tomcat) boots up.
+   - This is the "Foundation." It starts first and loads the "Backend" beans (Services, Repositories, DB configs) that should be shared globally across the whole app.
+   - **Responsibilities:**
+     - Initializes the Root `WebApplicationContext`.
+     - Manages beans that are shared across the entire application (Middle-tier Services and Data Access layers).
+     - Closes the context when the application is undeployed or the server stops.
+3. **Spring Web Context Hierarchy**
+   ```mermaid
+   graph TD
+    subgraph Root_Context_Managed_by_ContextLoaderListener
+    A[Services]
+    B[Repositories]
+    C[DataSources]
+    end
+
+    subgraph Servlet_Context_Managed_by_DispatcherServlet
+    D[Controllers]
+    E[ViewResolver]
+    F[HandlerMapping]
+    end
+
+    D --> A
+    A --> B
+   ```
+   - **Hierarchy:** The `DispatcherServlet` (Child Context) can access beans in the `ContextLoaderListener` (Parent Context), but not vice versa.
+   - **Separation:** This allows sharing global resources (DB, Security) across multiple servlets.
