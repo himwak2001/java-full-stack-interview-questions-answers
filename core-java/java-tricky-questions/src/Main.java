@@ -1,5 +1,8 @@
+import java_platform.JavaPlatform;
+
 public class Main {
     public static void main(String[] args) {
-        System.out.println("Hello world!");
+        JavaPlatform javaPlatform = new JavaPlatform();
+        javaPlatform.crossPlatformFilePath();
     }
 }
