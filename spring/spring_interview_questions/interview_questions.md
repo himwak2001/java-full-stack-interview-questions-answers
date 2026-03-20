@@ -1200,3 +1200,241 @@ In a Spring MVC application, these two components work together to manage the We
    ```
    - **Hierarchy:** The `DispatcherServlet` (Child Context) can access beans in the `ContextLoaderListener` (Parent Context), but not vice versa.
    - **Separation:** This allows sharing global resources (DB, Security) across multiple servlets.
+
+
+<br><br>
+
+**What is ViewResolver in Spring?**
+
+- The `ViewResolver` acts as a Translator. It takes the logical "View Name" (a simple String like `"home"`) returned by a Controller and maps it to a physical resource (like a `.jsp` or `.html` file).
+- It prevents hardcoding full file paths in your Java code. If you move your JSP files from one folder to another, you only change the configuration, not the Java code.
+- **Core Interface:** `org.springframework.web.servlet.ViewResolver`.
+- **View Resolution Workflow**
+  ```mermaid
+  graph LR
+    A[Controller returns 'home'] --> B{DispatcherServlet}
+    B --> C[ViewResolver]
+    C --> D[Physical Path: /WEB-INF/views/home.jsp]
+    D --> E[Rendered HTML to Browser]
+    
+    style C fill:#d1ecf1,stroke:#0c5460
+  ```
+  - **Decoupling:** The Controller doesn't care where the file is stored or what its extension is; it only knows the "name" of the page.
+- **Code Implementation**
+  
+  **Java Configuration**
+  ```java
+  package com.example.config;
+
+  import org.springframework.context.annotation.Bean;
+  import org.springframework.context.annotation.Configuration;
+  import org.springframework.web.servlet.view.InternalResourceViewResolver;
+
+  @Configuration
+  public class WebConfig {
+
+      @Bean
+      public InternalResourceViewResolver viewResolver() {
+          InternalResourceViewResolver resolver = new InternalResourceViewResolver();
+          // Sets the folder where JSPs are kept
+          resolver.setPrefix("/WEB-INF/views/"); 
+          // Sets the file extension
+          resolver.setSuffix(".jsp");            
+          return resolver;
+      }
+  }
+  ```
+  **Controller Interaction**
+  ```java
+  @Controller
+  public class MyController {
+
+      @org.springframework.web.bind.annotation.GetMapping("/welcome")
+      public String showWelcomePage() {
+          // Logic: Spring combines Prefix + "welcome" + Suffix
+          // Result: /WEB-INF/views/welcome.jsp
+          return "welcome"; 
+      }
+  }
+  ```
+
+
+<br><br>
+
+**What is a `MultipartResolver` and when it’s used?**
+
+- The `MultipartResolver` is a strategy interface responsible for handling HTTP POST requests that contain file uploads (multipart/form-data). It "parses" the incoming request and makes the file data available as a `org.springframework.web.multipart.MultipartFile` object.
+- When a request comes in with a file, the `DispatcherServlet` checks for a bean named "multipartResolver". If found, it wraps the standard `HttpServletRequest` into a `MultipartHttpServletRequest`, allowing easy access to the uploaded files.
+- **Multipart Upload Workflow**
+  ```mermaid
+  graph TD
+    A[Browser: POST /upload] --> B{DispatcherServlet}
+    B --> C{MultipartResolver Bean exists?}
+    C -- Yes --> D[Parse Request & Wrap as MultipartRequest]
+    C -- No --> E[Process as Regular Request]
+    D --> F[Controller Method]
+    F --> G[Access File via @RequestParam MultipartFile]
+    
+    style D fill:#d4edda,stroke:#28a745
+    style G fill:#fff4dd,stroke:#d4a017
+  ```
+  - **StandardServletMultipartResolver:** The modern implementation (Spring 3.1+) that uses the Servlet 3.0 container's built-in file upload support.
+  - **CommonsMultipartResolver:** Uses the external "Apache Commons FileUpload" library (legacy/older Spring versions).
+- **Implementation:**
+  - **Configuration:** To use file uploading, you must define a bean with the exact name `multipartResolver`.
+    ```java
+    package com.example.config;
+
+    import org.springframework.context.annotation.Bean;
+    import org.springframework.context.annotation.Configuration;
+    import org.springframework.web.multipart.support.StandardServletMultipartResolver;
+
+    @Configuration
+    public class AppConfig {
+
+        @Bean(name = "multipartResolver")
+        public StandardServletMultipartResolver multipartResolver() {
+            // Uses the container's built-in multipart support
+            return new StandardServletMultipartResolver();
+        }
+    }
+    ```
+  - **Usage in Controller:** In the controller, you simply use the `@org.springframework.web.bind.annotation.RequestParam` annotation to capture the file.
+    ```java
+    @PostMapping("/upload")
+    public String handleFileUpload(
+        @RequestParam("file") MultipartFile file) {
+
+        if (!file.isEmpty()) {
+            String fileName = file.getOriginalFilename();
+            byte[] bytes = file.getBytes(); // Logic to save the file
+            return "uploadSuccess";
+        }
+        return "uploadFailure";
+    }
+    ```
+
+
+<br><br>
+
+**How to handle exceptions in Spring MVC Framework?**
+
+Spring provides a robust, layered approach to catching and managing errors, ranging from single controllers to entire applications.
+
+- **Exception Handling Hierarchy**
+  ```mermaid
+  graph TD
+    A[Exception Occurs] --> B{Handled in Controller?}
+    B -- Yes [@ExceptionHandler] --> C[Return Error View/Data]
+    B -- No --> D{Handled Globally?}
+    D -- Yes [@ControllerAdvice] --> C
+    D -- No --> E[HandlerExceptionResolver]
+    E --> F[Default Error Page / WhiteLabel]
+    
+    style B fill:#fff4dd,stroke:#d4a017
+    style D fill:#d4edda,stroke:#28a745
+    style E fill:#d1ecf1,stroke:#0c5460
+  ```
+  - **Resolution Order:** Spring first checks the local Controller, then Global Advice, and finally the Resolver implementations.
+- **Controller-Based (`@ExceptionHandler`)**
+  - Works only for the specific Controller where it is defined.
+  - Best for handling exceptions unique to a single functional area (e.g., `UserNotFoundException` in a `UserController`).
+    ```java
+    @Controller
+    public class UserController {
+
+        @org.springframework.web.bind.annotation.ExceptionHandler(UserNotFoundException.class)
+        public String handleUserError(Exception ex) {
+            // Logic to handle error only for this controller
+            return "error/userError";
+        }
+    }
+    ```
+- **Global Exception Handler (`@ControllerAdvice - org.springframework.web.bind.annotation.ControllerAdvice`)**
+  - Intercepts exceptions across all Controllers in the application.
+  - Centralizes error logic (Separation of Concerns). It acts as an "Interceptor" for exceptions.
+    ```java
+    @ControllerAdvice
+    public class GlobalExceptionHandler {
+
+        @ExceptionHandler(Exception.class)
+        public ModelAndView handleGlobalError(Exception ex) {
+            ModelAndView mav = new ModelAndView("error/generic");
+            mav.addObject("message", ex.getMessage());
+            return mav;
+        }
+    }
+    ```
+- **HandlerExceptionResolver (Low-Level)**
+  - The entire application context.
+  - An interface (`org.springframework.web.servlet.HandlerExceptionResolver`) used to map exceptions to specific Views.
+  - `SimpleMappingExceptionResolver` is often used in XML/Java config to route specific exception classes to static error pages.
+  ```java
+  @Bean
+  public SimpleMappingExceptionResolver exceptionResolver() {
+      SimpleMappingExceptionResolver r = 
+          new SimpleMappingExceptionResolver();
+      
+      Properties mappings = new Properties();
+      mappings.setProperty("DatabaseException", "databaseError");
+      r.setExceptionMappings(mappings); // Maps Exception -> View Name
+      return r;
+  }
+  ```
+
+<br><br>
+
+**How to create `ApplicationContext` in a Java Program?**
+
+- **`org.springframework.context.ApplicationContext`:** This is the central interface representing the **Spring IoC container**. It is responsible for instantiating, configuring, and assembling beans.
+- While web apps use `WebApplicationContext`, standalone Java programs (like a main method) use specific implementations based on how the metadata (XML or Java) is provided.
+- **Context Creation Workflow**
+  ```mermaid
+  graph TD
+    subgraph Configuration_Sources
+    XML[XML File]
+    Java[Java Config Class]
+    FS[File System Path]
+    end
+
+    XML -->|Load| B[ClassPathXmlApplicationContext]
+    Java -->|Scan| C[AnnotationConfigApplicationContext]
+    FS -->|Path| D[FileSystemXmlApplicationContext]
+
+    B --> E((Spring Container))
+    C --> E
+    D --> E
+
+    E --> F[Bean Instance 1]
+    E --> G[Bean Instance 2]
+  ```
+  - **Source:** The implementation you choose depends entirely on where your "Rules" (Bean definitions) are stored.
+  - **Lifecycle:** Once initialized, the container manages the entire lifecycle of the beans until the program exits.
+
+1. **`AnnotationConfigApplicationContext`**
+   - The modern standard for Java-based configuration (No XML).
+   - It accepts classes annotated with @Configuration as input.
+    ```java
+    // Initialize using a Configuration class
+    org.springframework.context.ApplicationContext context = 
+        new org.springframework.context.annotation.AnnotationConfigApplicationContext(AppConfig.class);
+
+    // Retrieve the bean
+    MyService service = context.getBean(MyService.class);
+    ```
+2. **`ClassPathXmlApplicationContext`**
+   - When bean definitions are stored in an XML file located within the project's resources/classpath.
+   - It searches the application's build path for the specified XML filename.
+    ```java
+    // Looks for "beans.xml" in the src/main/resources folder
+    org.springframework.context.ApplicationContext context = 
+        new org.springframework.context.support.ClassPathXmlApplicationContext("beans.xml");
+    ```
+3. **`FileSystemXmlApplicationContext`**
+   - When the XML configuration file is stored outside the project (e.g., on a specific drive or absolute path).
+   - Unlike ClassPath, this requires a full or relative file system path.
+    ```java
+    // Loads XML from a specific location on the C: drive
+    org.springframework.context.ApplicationContext context = 
+        new org.springframework.context.support.FileSystemXmlApplicationContext("C:/config/app-context.xml");
+    ```
