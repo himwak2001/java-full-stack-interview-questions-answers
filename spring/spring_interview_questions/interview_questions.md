@@ -1497,3 +1497,365 @@ Spring provides a robust, layered approach to catching and managing errors, rang
     org.springframework.context.ApplicationContext context = 
         new org.springframework.context.support.FileSystemXmlApplicationContext("C:/config/app-context.xml");
     ```
+
+<br><br>
+
+**Can we have multiple Spring configuration files?**
+
+Yes, you can split your Spring configuration into multiple files. This is a best practice for large applications to maintain a clean Separation of Concerns (e.g., separating Database, Security, and Web logic).
+
+1. **Web Deployment Descriptor (`web.xml`)**
+   - You can provide a comma or space-separated list of files in your `web.xml`. This works for both the Root Context and the Servlet Context.
+   - **For DispatcherServlet (Web Beans):**
+      ```xml
+      <servlet>
+          <servlet-name>appServlet</servlet-name>
+          <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+          <init-param>
+              <param-name>contextConfigLocation</param-name>
+              <param-value>
+                  /WEB-INF/spring/servlet-context.xml,
+                  /WEB-INF/spring/servlet-views.xml
+              </param-value>
+          </init-param>
+      </servlet>
+      ```
+   - **For ContextLoaderListener (Root Beans):**
+      ```xml
+      <context-param>
+          <param-name>contextConfigLocation</param-name>
+          <param-value>/WEB-INF/spring/root-db.xml /WEB-INF/spring/root-security.xml</param-value>
+      </context-param>
+      ```
+2. **Using XML `<import>`**
+   - Instead of listing everything in `web.xml`, you can have one "Master" file that imports others. This keeps your `web.xml` clean.
+   ```xml
+    <beans xmlns="http://www.springframework.org/schema/beans">
+        <import resource="datasource-config.xml"/>
+        <import resource="security-config.xml"/>
+        
+        <bean id="myBean" class="com.example.MyBean" />
+    </beans>
+   ```
+3. **Java-Based Configuration (`@Import`)**
+   - In modern Spring applications, you use the `org.springframework.context.annotation.Import` annotation to group multiple `@Configuration` classes.
+    ```java
+    @org.springframework.context.annotation.Configuration
+    @org.springframework.context.annotation.Import({DbConfig.class, SecurityConfig.class})
+    public class AppConfig {
+        // This class now includes all beans from DbConfig and SecurityConfig
+    }
+    ```
+4. **Advantages**
+   - **Maintainability:** Small files are easier to read and debug.
+   - **Team Collaboration:** Different developers can work on different configuration files (e.g., `jms-config.xml` vs `jpa-config.xml`) without merge conflicts.
+   - **Environment Specifics:** You can easily swap one file (like `mail-test.xml`) for another (`mail-prod.xml`) based on the deployment environment.
+
+
+<br><br>
+
+> **💡What is Context?**
+> 
+> In the world of Spring, Context is simply the "Container" or "Brain" that manages your objects. Think of it as a Box that holds all your application's components (Beans) and handles how they talk to each other.
+
+<br><br>
+
+**What is `ContextLoaderListener`?**
+
+- `org.springframework.web.context.ContextLoaderListener` is a standard `javax.servlet.ServletContextListener` that bootstraps and shuts down Spring's Root `WebApplicationContext`.
+- It creates the "Parent" context that stays alive for the entire lifecycle of the web application. It is used to define beans that should be shared across multiple servlets (e.g., Database DataSources, Hibernate SessionFactories, and Service layer beans).
+- Beans defined here are visible to all `DispatcherServlet` (Child) contexts, but Child beans (like Controllers) are not visible to this Root context.
+- **`ContextLoaderListener` Workflow**
+  ```mermaid
+  graph TD
+    A[Web Container Starts - e.g. Tomcat] --> B[ContextLoaderListener initialized]
+    B --> C[Reads contextConfigLocation from web.xml]
+    C --> D[Creates Root WebApplicationContext]
+    D --> E[Loads Services, Repositories, Security]
+    E --> F[Application is Ready for DispatcherServlet]
+    
+    style B fill:#d1ecf1,stroke:#0c5460
+    style D fill:#d4edda,stroke:#28a745
+  ```
+  - **Trigger:** The application server (Tomcat) starts and detects the listener in `web.xml`.
+  - **Creation:** It creates the Root context before any Servlets are initialized.
+- **Configuration (`web.xml`)**
+  ```xml
+  <context-param>
+      <param-name>contextConfigLocation</param-name>
+      <param-value>/WEB-INF/spring/root-context.xml</param-value>
+  </context-param>
+
+  <listener>
+      <listener-class>org.springframework.web.context.ContextLoaderListener</listener-class>
+  </listener>
+  ```
+  - **`context-param`:** Used to tell the listener where the XML configuration files are located.
+  - **`listener`:** Registers the class so the container knows to execute it at startup.
+- **The Parent-Child Relationship**
+  - In a traditional Spring MVC application, the relationship between the `ContextLoaderListener` and the `DispatcherServlet` is a one-way hierarchy.
+  ```mermaid
+  graph TD
+    subgraph Parent_Context_Root_ContextLoaderListener
+    A[Services: @Service]
+    B[Repositories: @Repository]
+    C[DataSources / Security]
+    end
+
+    subgraph Child_Context_1_DispatcherServlet_Web
+    D[Web Controllers: @Controller]
+    E[ViewResolver / HandlerMapping]
+    end
+
+    subgraph Child_Context_2_DispatcherServlet_API
+    F[REST Controllers: @RestController]
+    G[JSON/XML Message Converters]
+    end
+
+    D -.->|Can Access| A
+    F -.->|Can Access| A
+    A -.->|Cannot Access| D
+  ```
+
+
+<br><br>
+
+**What are the minimum configurations needed to create a Spring MVC application?**
+
+To create a functional Spring MVC application from scratch (non-Boot), you need a specific set of configuration components to bridge the gap between the Servlet container (like Tomcat) and the Spring IoC container.
+
+- **Minimal Configuration Checklist**
+  - **Project Dependencies (Maven/Gradle)**
+    - You must include the core Spring libraries. At a minimum, you need:
+      - **`spring-webmvc`:** Includes the `DispatcherServlet` and web infrastructure.
+      - **`spring-context`:** For Dependency Injection and Bean management.
+      - **`javax.servlet-api`:** Required to compile classes that interact with the Servlet container.
+  - **Deployment Descriptor (`web.xml`)**
+    - This is the entry point for the Web Container. You must register the `org.springframework.web.servlet.DispatcherServlet`.
+      ```xml
+      <servlet>
+          <servlet-name>spring-mvc</servlet-name>
+          <servlet-class>org.springframework.web.servlet.DispatcherServlet</servlet-class>
+          <load-on-startup>1</load-on-startup>
+      </servlet>
+
+      <servlet-mapping>
+          <servlet-name>spring-mvc</servlet-name>
+          <url-pattern>/</url-pattern> </servlet-mapping>
+      ```
+  - **Spring Configuration (Java or XML)**
+    - You need to tell Spring how to find your controllers and how to resolve your views.
+      - **Component Scanning:** Use `<context:component-scan>` or `@ComponentScan` so Spring finds your `@Controller` classes.
+      - **View Resolver:** Define an `InternalResourceViewResolver` to map String names to JSP/HTML files.
+  - **A Controller Class**
+    - Finally, you need at least one class annotated with @Controller to handle a specific URL path.
+      ```java
+      @org.springframework.stereotype.Controller
+      public class HomeController {
+          @org.springframework.web.bind.annotation.RequestMapping("/")
+          public String home() {
+              return "index"; // Resolves to /WEB-INF/views/index.jsp
+          }
+      }
+      ```
+
+
+<br><br>
+
+**How would you relate Spring MVC Framework to MVC architecture?**
+
+Spring MVC is a sophisticated implementation of the classic Model-View-Controller (MVC) design pattern. It provides a clean separation between the business logic, the data, and the user interface.
+
+**The Mapping of Spring to MVC Components**
+| MVC Component | Spring MVC Implementation | Role |
+|:-|:-|:-|
+| Front Controller | `DispatcherServlet` | The central entry point. It intercepts all incoming requests and manages the flow. |
+| Controller | `@Controller` classes | Contains the logic. It processes the request, interacts with services, and decides which view to show. | 
+| Model | `org.springframework.ui.Model` | A container (Map) that holds the data. This data is "injected" into the View for rendering. | 
+| View | JSPs, Thymeleaf, HTML | The template that displays the data to the user. | 
+| View Resolver | `InternalResourceViewResolver` | The "Map" that helps the Front Controller find the physical file for the View. | 
+
+<br>
+
+**The Spring MVC Request Lifecycle**
+
+- **Request:** The client sends an HTTP request (e.g., `/home`).
+- **Front Control:** The DispatcherServlet receives it and asks the `HandlerMapping` which Controller should handle this URL.
+- `Process:` The DispatcherServlet sends the request to the specific `@Controller`.
+- **Logic:** The Controller runs business logic, populates the Model with data, and returns a "Logical View Name" (e.g., `"home"`).
+- **Resolve:** The DispatcherServlet asks the ViewResolver to find the actual file (e.g., `/WEB-INF/views/home.jsp`).
+- **Render:** The `DispatcherServlet` takes the Model data, puts it into the View file, and sends the final HTML back to the user.
+
+<br>
+
+**Visualizing the Interaction**
+```mermaid
+graph LR
+    User((User)) -->|1. Request| DS[DispatcherServlet]
+    DS -->|2. Mapping| HM[HandlerMapping]
+    DS -->|3. Call| C[Controller]
+    C -->|4. Return Model + View Name| DS
+    DS -->|5. Resolve| VR[ViewResolver]
+    DS -->|6. Render with Data| V[View Page]
+    V -->|7. Response| User
+
+    style DS fill:#d1ecf1,stroke:#0c5460
+    style C fill:#d4edda,stroke:#28a745
+    style V fill:#fff4dd,stroke:#d4a017
+```
+
+
+<br><br>
+
+**How to achieve localization in Spring MVC applications?**
+
+Localization (i18n) in Spring MVC is the process of adapting your application to different languages and regions without changing the code. Spring achieves this by intercepting the user's "Locale" (language/country) and mapping it to specific Resource Bundle properties files.
+
+**The Localization Workflow**
+```mermaid
+graph LR
+    A[Browser Request: ?locale=fr] --> B[LocaleChangeInterceptor]
+    B --> C[LocaleResolver: Sets Cookie/Session]
+    C --> D[MessageSource: Finds messages_fr.properties]
+    D --> E[View: Renders 'Bonjour' instead of 'Hello']
+    
+    style B fill:#d1ecf1,stroke:#0c5460
+    style D fill:#d4edda,stroke:#28a745
+```
+
+1. **Resource Bundles (`.properties` files)**
+   - Create a set of files in your `src/main/resources` folder. The base name (e.g., `messages`) is followed by the language code.
+     - **`messages_en.properties`:** `welcome.message=Welcome to our app!`
+     - **`messages_fr.properties`:** `welcome.message=Bienvenue dans notre application!`
+2. **MessageSource Bean**
+   - This bean is responsible for loading the property files. `ReloadableResourceBundleMessageSource` is preferred because it allows you to update translations without restarting the server.
+    ```java
+    @Bean
+    public MessageSource messageSource() {
+        ReloadableResourceBundleMessageSource source = new ReloadableResourceBundleMessageSource();
+        source.setBasename("classpath:messages"); // Points to messages_XX.properties
+        source.setDefaultEncoding("UTF-8");
+        return source;
+    }
+    ```
+3. **LocaleResolver & Interceptor**
+   - **LocaleResolver:** Decides how to "remember" the user's language choice.
+     - **`CookieLocaleResolver`:** Saves choice in a cookie (persists after browser restart).
+     - **`SessionLocaleResolver`:** Saves choice in the session (lost when browser closes).
+   - **LocaleChangeInterceptor:** Looks for a specific parameter in the URL (e.g., `?lang=fr`) to trigger a language switch.
+    ```java
+    @Bean
+    public LocaleResolver localeResolver() {
+        CookieLocaleResolver resolver = new CookieLocaleResolver();
+        resolver.setDefaultLocale(java.util.Locale.ENGLISH);
+        resolver.setCookieName("myAppLocaleCookie");
+        return resolver;
+    }
+
+    @Override
+    public void addInterceptors(InterceptorRegistry registry) {
+        LocaleChangeInterceptor lci = new LocaleChangeInterceptor();
+        lci.setParamName("lang"); // User changes language via ?lang=fr
+        registry.addInterceptor(lci);
+    }
+    ```
+4. **Using Messages in the View (JSP/Thymeleaf)**
+   - In your UI files, you no longer hardcode text. You use a "Key" that Spring replaces at runtime.
+   - **JSP Example:**
+      ```html
+      <%@ taglib prefix="spring" uri="http://www.springframework.org/tags" %>
+      <h1><spring:message code="welcome.message" /></h1>
+      ```
+   - **Thymeleaf Example:**
+      ```html
+      <h1 th:text="#{welcome.message}">Default Welcome</h1>
+      ```
+
+<br><br>
+
+**How can we use Spring to create Restful Web Service returning JSON response?**
+
+#### How Spring Handles JSON Serialization
+
+The magic happens via `org.springframework.http.converter.HttpMessageConverter`. When a controller returns an object, Spring looks for an available converter (like Jackson) to turn that Java object into a JSON string.
+
+1. **Dependencies (The Engine)**
+   - To handle JSON, Spring requires the Jackson library. If you are using Maven, you must include `jackson-databind`.
+    ```xml
+    <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-databind</artifactId>
+        <version>2.15.2</version>
+    </dependency>
+    ```
+2. **Configuration (The Translator)**
+   - You need to register the `MappingJackson2HttpMessageConverter`. This tells Spring: "If the client wants JSON, use this bean to convert my POJOs."
+     - **Modern Java Config:** Simply adding `@org.springframework.web.servlet.config.annotation.EnableWebMvc` automatically registers the Jackson converter if the library is on the classpath.
+     - **XML Config:**
+      ```xml
+      <bean class="org.springframework.web.servlet.mvc.method.annotation.RequestMappingHandlerAdapter">
+          <property name="messageConverters">
+              <list>
+                  <bean class="org.springframework.http.converter.json.MappingJackson2HttpMessageConverter"/>
+              </list>
+          </property>
+      </bean>
+      ```
+3. **The Controller (The Handler)**
+   - There are two ways to tell Spring to skip the `ViewResolver` and write directly to the HTTP response body:
+     - **`@ResponseBody`:** Put this on every method to return data.
+     - **`@RestController`:** A specialized version of `@Controller` that automatically adds `@ResponseBody` to every method in the class.
+    ```java
+    @RestController
+    public class EmployeeRestController {
+
+        @GetMapping("/rest/emp/{id}")
+        public Employee getEmployee(@PathVariable("id") int empId) {
+            // Spring automatically converts this Employee object to JSON
+            return employeeApiService.getById(empId);
+        }
+    }
+    ```
+4. **Consuming the Service**
+   - To test or call these services from another Java application, Spring provides the `RestTemplate` (classic) or `WebClient` (modern/reactive).
+    ```java
+    RestTemplate restTemplate = new RestTemplate();
+    Employee emp = restTemplate.getForObject("http://localhost:8080/rest/emp/1", Employee.class);
+    ```
+
+
+<br><br>
+
+**What are some of the important Spring annotations you have used?**
+
+Here is a breakdown of these annotations categorized by their functional layer:
+
+- **Core Container & Dependency Injection**
+
+  These are used to define and wire your beans together.
+
+  - **`@Component`:** The generic root annotation for any Spring-managed bean.
+  - **`@Autowired`:** Used to let Spring resolve and inject collaborating beans into your class.
+  - **`@Qualifier`:** Used alongside `@Autowired` when you have multiple beans of the same type (e.g., two different `PaymentGateway` implementations) to specify exactly which one to inject.
+  - **`@Scope`:** Defines the lifecycle of a bean (e.g., `singleton`, `prototype`, `request`, or `session`).
+- **Stereotype Annotations (Layering)**
+
+  These provide semantic meaning to your classes, making the architecture easier to understand.
+
+  - **`@Controller` / `@RestController`:** Marks a class as a web handler.
+  - **`@Service`:** Marks a class as the holder of business logic.
+  - **`@Repository`:** Marks a class as a Data Access Object (DAO) and enables automatic exception translation.
+- **Spring MVC & REST**
+
+  These manage how your Java code interacts with HTTP requests.
+
+  - **`@RequestMapping`:** The "Grandfather" of routing. It maps URLs to specific methods. (Modern versions include `@GetMapping`, `@PostMapping`, etc.).
+  - **`@PathVariable`:** Used to extract values directly from the URL (e.g., `/user/{id}`).
+  - **`@RequestParam`:** Used to extract query parameters (e.g., `/user?name=John`).
+  - **`@RequestBody`:** Converts an incoming JSON/XML body into a Java Object.
+  - **`@ResponseBody`:** Tells Spring that the return value of a method should be written directly to the web response body (as JSON/XML) instead of looking for a HTML view.
+- **Configuration & Aspect-Oriented Programming (AOP)**
+  - **`@Configuration`:** Indicates that a class contains `@Bean` definition methods.
+  - **`@Bean`:** Used inside a configuration class to manually define a bean (useful for 3rd party libraries).
+  - **`@ComponentScan`:** Tells Spring which packages to scan for annotated classes.
+  - **`@Aspect`, `@Before`, `@After`, `@Around`:** Used to implement AOP for tasks like logging or security without touching the business logic.
