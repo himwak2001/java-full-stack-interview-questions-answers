@@ -1859,3 +1859,259 @@ Here is a breakdown of these annotations categorized by their functional layer:
   - **`@Bean`:** Used inside a configuration class to manually define a bean (useful for 3rd party libraries).
   - **`@ComponentScan`:** Tells Spring which packages to scan for annotated classes.
   - **`@Aspect`, `@Before`, `@After`, `@Around`:** Used to implement AOP for tasks like logging or security without touching the business logic.
+
+
+<br><br>
+
+**Can we send an Object as the response of Controller handler method?**
+
+- Yes, we absolutely can. In modern Spring development, sending an object as a response is the standard way to build RESTful APIs.
+- When you return a POJO (Plain Old Java Object) or a Collection (like a List or Map) from a handler method, Spring doesn't look for a HTML page. Instead, it serializes that object into a data format like JSON or XML.
+- **How it Works Internally**
+  - **Annotation:** You mark the method with `@ResponseBody` (or use `@RestController` at the class level).
+  - **Return Type:** Your method returns a Java Object (e.g., `User`, `Employee`, or `List<Product>`).
+  - **Content Negotiation:** Spring looks at the client's Accept header (e.g., `application/json`).
+  - **HttpMessageConverter:** Spring selects a converter (like Jackson for JSON) to transform the Java object into the requested format and writes it directly to the HTTP response body.
+- **Code Implementation:**
+  - Using @`RestController` is the most common approach because it automatically adds `@ResponseBody` to every method.
+  ```java
+  package com.example.controller;
+
+  import com.example.model.Employee;
+  import org.springframework.web.bind.annotation.GetMapping;
+  import org.springframework.web.bind.annotation.PathVariable;
+  import org.springframework.web.bind.annotation.RestController;
+
+  @RestController // Combined @Controller + @ResponseBody
+  public class EmployeeController {
+
+      @GetMapping("/api/employee/{id}")
+      public Employee getEmployee(@PathVariable int id) {
+          // Returns an Object. Spring converts this to JSON automatically.
+          return new Employee(id, "John Doe", "Engineering");
+      }
+  }
+  ```
+  - While returning a raw Object works, professional developers often wrap the object in a `org.springframework.http.ResponseEntity`. This allows you to send back custom HTTP Status Codes and Headers along with your object.
+  ```java
+  @GetMapping("/api/employee/{id}")
+  public org.springframework.http.ResponseEntity<Employee> getEmployee(@PathVariable int id) {
+      Employee emp = service.findById(id);
+      
+      if (emp == null) {
+          return org.springframework.http.ResponseEntity.notFound().build(); // Sends 404
+      }
+      
+      return org.springframework.http.ResponseEntity.ok(emp); // Sends 200 OK with JSON body
+  }
+  ```
+- **Key Requirements**
+  - **Jackson Library:** You must have the Jackson Databind library on your classpath (standard in `spring-boot-starter-web`).
+  - **Getters/Setters:** The object you are returning must have standard Getter methods so the JSON serializer can read the data.
+
+
+<br><br>
+
+**What is Spring MVC Interceptor and how to use it?**
+
+- A `org.springframework.web.servlet.HandlerInterceptor` is a powerful tool used to intercept HTTP requests before they reach your `@Controller` or after the request has been processed but before the view is rendered.
+- Think of it as a Security Guard at a building entrance. They check your ID before you enter (Request), and they might log the time you leave (Response).
+- While Filters are part of the standard Servlet API (outside Spring), Interceptors are part of the Spring MVC ecosystem. This means Interceptors have full access to the Spring Context and your specialized Beans.
+- **The Interceptor Lifecycle**
+
+  There are three specific "hook" points where you can add logic:
+
+  - **`preHandle()`:** Executed before the actual handler (Controller) is executed.
+    - Use Case: Authentication checks, logging request parameters, or redirecting users.
+    - Note: If this returns false, the request is stopped and never reaches the Controller.
+  - **`postHandle()`:** Executed after the handler is executed but before the view is rendered.
+    - Use Case: Adding common attributes to the `ModelAndView` (like a "username" or "menu items").
+  - **`afterCompletion()`:** Executed after the complete request has finished and the view is rendered.
+    - Use Case: Performance monitoring (calculating total request time) or resource cleanup.
+- **Workflow Visualization**
+  ```mermaid
+  graph LR
+    A[Browser] --> B{DispatcherServlet}
+    B --> C[preHandle]
+    C -->|true| D[Controller Logic]
+    D --> E[postHandle]
+    E --> F[View Rendering]
+    F --> G[afterCompletion]
+    G --> B
+    B --> H[Response to Browser]
+    
+    style C fill:#fff4dd,stroke:#d4a017
+    style E fill:#d4edda,stroke:#28a745
+    style G fill:#d1ecf1,stroke:#0c5460
+  ```
+- **How to Use It**
+  - **Create the Interceptor Class**
+
+    You implement the `HandlerInterceptor` interface. (Note: `HandlerInterceptorAdapter` is deprecated in newer Spring versions as the interface now uses default methods).
+
+    ```java
+    package com.example.interceptor;
+
+    import javax.servlet.http.HttpServletRequest;
+    import javax.servlet.http.HttpServletResponse;
+    import org.springframework.web.servlet.HandlerInterceptor;
+    import org.springframework.web.servlet.ModelAndView;
+
+    public class MyRequestInterceptor implements HandlerInterceptor {
+
+        @Override
+        public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
+            System.out.println("1. Pre-Handle: Intercepting " + request.getRequestURI());
+            return true; // Continue to Controller
+        }
+
+        @Override
+        public void postHandle(HttpServletRequest request, HttpServletResponse response, Object handler, ModelAndView modelAndView) {
+            System.out.println("2. Post-Handle: Logic after Controller");
+        }
+
+        @Override
+        public void afterCompletion(HttpServletRequest request, HttpServletResponse response, Object handler, Exception ex) {
+            System.out.println("3. After-Completion: Request Finished");
+        }
+    }
+    ```
+
+  - **Register the Interceptor**
+
+    You must tell Spring which URLs this interceptor should watch.
+
+    ```java
+    @Configuration
+    public class WebConfig implements WebMvcConfigurer {
+        @Override
+        public void addInterceptors(InterceptorRegistry registry) {
+            registry.addInterceptor(new MyRequestInterceptor())
+                    .addPathPatterns("/admin/**")    // Only for admin pages
+                    .excludePathPatterns("/login"); // Ignore login page
+        }
+    }
+    ```
+
+<br><br>
+
+**What is the Spring JdbcTemplate class and how to use it?**
+
+- `org.springframework.jdbc.core.JdbcTemplate` is the central class in the Spring JDBC module. It simplifies the use of JDBC by handling the creation and release of resources (Connections, Statements, ResultSets) automatically.
+- Standard JDBC is notorious for "Boilerplate Code." To run a simple `SELECT` query, you typically write 15–20 lines of code just to handle `try-catch-finally` blocks and resource cleanup.
+- `JdbcTemplate` allows you to focus purely on the SQL and the Mapping of data to your Java objects.
+- **Core Capabilities**
+  - **Querying Data:** Retrieve single values, maps, or full domain objects.
+  - **Updating Data:** Perform `INSERT`, `UPDATE`, and `DELETE` operations using the `update()` method.
+  - **Exception Translation:** It converts complex SQL vendor-specific error codes into a meaningful Spring `DataAccessException` hierarchy (e.g., `DuplicateKeyException`).
+  - **RowMapping:** It provides the `RowMapper<T>` interface to easily convert a row of a `ResultSet` into a Java POJO.
+- **How to Use It**
+  - **Configure the DataSource**
+
+    First, you need a `javax.sql.DataSource` bean (like HikariCP or Apache Commons DBCP) and then inject it into the `JdbcTemplate`.
+
+    ```java
+    @Configuration
+    public class DbConfig {
+        @Bean
+        public DataSource dataSource() {
+            DriverManagerDataSource ds = new DriverManagerDataSource();
+            ds.setDriverClassName("com.mysql.cj.jdbc.Driver");
+            ds.setUrl("jdbc:mysql://localhost:3306/mydb");
+            ds.setUsername("root");
+            ds.setPassword("password");
+            return ds;
+        }
+
+        @Bean
+        public JdbcTemplate jdbcTemplate(DataSource dataSource) {
+            return new JdbcTemplate(dataSource);
+        }
+    }
+    ```
+  - **Using it in a Repository**
+    
+    Inject the `JdbcTemplate` into your DAO or Repository class.
+
+    ```java
+    @Repository
+    public class EmployeeRepository {
+
+        @Autowired
+        private JdbcTemplate jdbcTemplate;
+
+        // Example 1: Query for a single object
+        public String getEmployeeNameById(int id) {
+            String sql = "SELECT name FROM employees WHERE id = ?";
+            return jdbcTemplate.queryForObject(sql, String.class, id);
+        }
+
+        // Example 2: Query and Map to a POJO
+        public List<Employee> getAllEmployees() {
+            String sql = "SELECT * FROM employees";
+            return jdbcTemplate.query(sql, (rs, rowNum) -> {
+                Employee emp = new Employee();
+                emp.setId(rs.getInt("id"));
+                emp.setName(rs.getString("name"));
+                return emp;
+            });
+        }
+
+        // Example 3: Update/Insert data
+        public int saveEmployee(Employee emp) {
+            String sql = "INSERT INTO employees (id, name) VALUES (?, ?)";
+            return jdbcTemplate.update(sql, emp.getId(), emp.getName());
+        }
+    }
+    ```
+- **Why use `JdbcTemplate` over Hibernate/JPA?**
+  - **Performance:** There is almost zero overhead; it's as fast as raw JDBC.
+  - **Control:** You have full control over the SQL. This is great for complex reports or using database-specific features.
+  - **Simplicity:** For small projects or microservices that only need a few queries, setting up a full ORM like Hibernate might be overkill.
+
+
+<br><br>
+
+**How would you achieve Transaction Management in Spring?**
+
+Transaction management is one of the most powerful features of the Spring Framework. It ensures Data Integrity by following the ACID properties (Atomicity, Consistency, Isolation, Durability).
+
+In Spring, you have two primary ways to manage transactions: Declarative and Programmatic.
+
+1. **Declarative Transaction Management (Recommended)**
+   - This is the most popular approach because it uses **AOP (Aspect-Oriented Programming)** to separate transaction logic from business logic. You simply use the `@org.springframework.transaction.annotation.Transactional` annotation.
+     - **How it works:** Spring creates a proxy around your bean. When a method marked `@Transactional` is called, the proxy starts a transaction, executes your method, and then commits (if successful) or rolls back (if an unchecked exception occurs).
+     - **Benefits:** Clean code, easy to maintain, and highly configurable.
+   - **Java Configuration**
+      ```java
+      @Configuration
+      @EnableTransactionManagement
+      public class AppConfig {
+          
+          @Bean
+          public DataSourceTransactionManager transactionManager(DataSource ds) {
+              return new DataSourceTransactionManager(ds);
+          }
+      }
+      ```
+   - **Usage in Service**
+      ```java
+      @Service
+      public class BankService {
+
+          @Transactional
+          public void transferMoney(Long fromId, Long toId, Double amount) {
+              accountRepo.debit(fromId, amount);
+              accountRepo.credit(toId, amount);
+              // If any line fails, the entire operation rolls back!
+          }
+      }
+      ```
+2. **Programmatic Transaction Management**
+   - This involves writing code to explicitly manage the transaction boundaries. It is useful when you have very complex logic where a single method might need multiple small transactions.
+     - **Tools:** You use `TransactionTemplate` or the platform-specific `PlatformTransactionManager`.
+     - **Drawback:** It couples your business logic with transaction management code, making it harder to read and test.
+
+**Important Note: Rollback Rules**
+- By default, Spring only rolls back for Unchecked Exceptions (`RuntimeException` and `Error`). It does not roll back for Checked Exceptions (like `IOException` or `SQLException`) unless you explicitly tell it to:
+`@Transactional(rollbackFor = Exception.class)`
