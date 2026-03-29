@@ -211,318 +211,216 @@ The Spring Framework is the industry standard for Java development because it so
 
 **What do you understand by Dependency Injection?**
 
-- Dependency Injection (DI) is a design pattern where the dependency of a class is provided by an external source instead of creating it inside the class.
-- It helps in removing hard-coded dependencies and makes the application loosely coupled.
-- In Spring, the IoC container (`org.springframework.context.ApplicationContext`) creates objects and injects the required dependencies at runtime.
-- **Without Dependency Injection (Tight Coupling)**
-  - The class creates its dependency itself using `new`.
-  - This makes the code hard to modify and test.
-  ```java
-  // Tight Coupling Example (Without DI)
+- Dependency Injection is a design pattern where an object's dependencies (other objects it needs to function) are provided to it by an external entity (the Spring Container), rather than the object creating them itself.
+- DI is the specific method used to implement IoC. Instead of your code calling the framework, the framework (Spring) calls your code and "injects" what is required.
+- In traditional programming, dependencies are fixed at compile-time (using `new`). With DI, they are plugged in at runtime, allowing you to swap implementations without changing the source code.
+- **DI Visualization: Tight vs. Loose Coupling**
+  ```mermaid
+  graph TD
+    subgraph Tight_Coupling_No_DI
+    A[Car Class] -->|new| B[Petrol Engine]
+    style B fill:#f8d7da,stroke:#dc3545
+    end
 
-  public class UserService {
-
-      // Hard-coded dependency
-      private UserRepository repository = new UserRepository();
-
-      public void getUser() {
-          repository.findUser();
-      }
-  }
-
-  class UserRepository {
-      public void findUser() {
-          System.out.println("Fetching user from DB");
-      }
-  }
+    subgraph Loose_Coupling_With_DI
+    C[Car Class] o-- Injected --o D{Engine Interface}
+    D -.-> E[Petrol Engine]
+    D -.-> F[Electric Engine]
+    style D fill:#d4edda,stroke:#28a745
+    end
   ```
-  - `UserService` is directly dependent on `UserRepository`.
-  - Changing implementation becomes difficult.
-- **With Dependency Injection (Loose Coupling)**
-  - Dependency is provided by Spring container instead of creating it manually.
-  ```java
-  // Dependency Injection using Constructor Injection
-
-  @org.springframework.stereotype.Service
-  public class UserService {
-
-      private final UserRepository repository;
-
-      // Dependency injected by Spring
-      public UserService(UserRepository repository) {
-          this.repository = repository;
-      }
-
-      public void getUser() {
-          repository.findUser();
-      }
-  }
-
-  @org.springframework.stereotype.Repository
-  class UserRepository {
-      public void findUser() {
-          System.out.println("Fetching user from DB");
-      }
-  }
-  ```
-  - Spring creates objects and injects dependencies automatically.
-- **Dependency Resolution**
-  - In normal code → dependency is decided at compile time.
-  - With DI → dependency is resolved at runtime by Spring container.
+  - **Tight Coupling:** The `Car` is stuck with a `Petrol Engine`. To change it, you must modify the Car class.
+  - **Loose Coupling:** The `Car` just asks for an `Engine`. Spring decides which one to provide based on configuration.
 - **Benefits of Dependency Injection**
-  - **Loose Coupling** → classes are independent.
-  - **Separation of Concerns** → object creation and business logic are separated.
-  - **Less Boilerplate Code** → framework manages object creation.
-  - **Easy Unit Testing** → dependencies can be replaced with mock objects.
-  - **Configurable Components** → implementations can be changed easily without modifying business logic.
+  - **Separation of Concerns:** The class focuses on its job, not on how to find or build its helpers.
+  - **Boilerplate Reduction:** No more complex factory patterns or manual object instantiation scattered throughout the app.
+  - **Configurable Components:** You can switch from a `DevDatabase` to a `ProdDatabase` simply by changing a configuration setting.
+  - **Easy Unit Testing:** You can inject "Mock" objects during testing. If a service needs an `EmailSender`, you inject a mock that doesn't actually send emails during the test.
+- **Code Implementation Comparison**
+  - **Hard-Coded Dependency (Bad Practice)**
+    ```java
+    public class MyService {
+        // Hard-coded: This class is now tightly coupled to MySqlRepository
+        private MySqlRepository repository = new MySqlRepository(); 
+        
+        public void process() {
+            repository.save();
+        }
+    }
+    ```
+  - **Using Dependency Injection (Spring Way)**
+    ```java
+    @org.springframework.stereotype.Service
+    public class MyService {
+
+        private final com.example.repository.DataRepository repository;
+
+        // Dependency is "Injected" via constructor
+        @org.springframework.beans.factory.annotation.Autowired
+        public MyService(com.example.repository.DataRepository repository) {
+            this.repository = repository;
+        }
+        
+        public void process() {
+            repository.save();
+        }
+    }
+    ```
 
 
 <br><br>
 
 **How do you implement DI in Spring Framework?**
 
-- Dependency Injection (DI) in Spring can be implemented using two main approaches:
-  - XML-based configuration
-  - Annotation-based configuration
-- In both cases, the Spring IoC container (`org.springframework.context.ApplicationContext`) creates objects and injects dependencies.
-- XML-Based Dependency Injection
-  - Dependencies are configured in an XML configuration file.
-  - Spring reads the XML file and injects dependencies at runtime.
-  ```xml
-  <!-- beans.xml configuration file -->
-  <beans xmlns="http://www.springframework.org/schema/beans">
+In Spring, Dependency Injection (DI) is implemented by defining "metadata" that tells the IoC Container which objects to create and how to connect them.
 
-      <!-- Defining repository bean -->
-      <bean id="userRepository" class="com.example.repository.UserRepository"/>
-
-      <!-- Injecting dependency into service -->
-      <bean id="userService" class="com.example.service.UserService">
-          <constructor-arg ref="userRepository"/>
-      </bean>
-
-  </beans>
+- **DI Implementation Workflow**
+  ```mermaid
+  graph LR
+    A[Metadata: XML or Annotations] --> B{Spring IoC Container}
+    B --> C[Bean A]
+    B --> D[Bean B]
+    C -.->|Injected into| D
+    
+    style B fill:#d1ecf1,stroke:#0c5460
+    style D fill:#fff4dd,stroke:#d4a017
   ```
+  - **The Container:** `org.springframework.context.ApplicationContext` reads the metadata.
+  - **The Wiring:** The container automatically places an instance of Bean A into Bean B.
+- **Constructor-Based Injection (Recommended)**
+  - Dependencies are provided as arguments to the class constructor.
+  - It ensures the bean is immutable (cannot be changed after creation) and that all required dependencies are present.
   ```java
-  // Service class
-  package com.example.service;
-
-  public class UserService {
-
-      private UserRepository repository;
-
-      // Constructor for dependency injection
-      public UserService(UserRepository repository) {
-          this.repository = repository;
-      }
-  }
-  ```
-  ```java
-  // Loading Spring container
-  org.springframework.context.ApplicationContext context =
-          new org.springframework.context.support.ClassPathXmlApplicationContext("beans.xml");
-
-  UserService service = context.getBean(UserService.class);
-  ```
-  - XML configuration defines beans and their dependencies.
-  - Spring container creates objects and injects them.
-- Annotation-Based Dependency Injection
-  - Dependencies are injected using annotations instead of XML.
-  - This is the most commonly used approach today.
-  ```java
-  // Repository class
-  @org.springframework.stereotype.Repository
-  public class UserRepository {
-
-      public void findUser() {
-          System.out.println("Fetching user from database");
-      }
-  }
-  ```
-  ```java
-  // Service class with dependency injection
   @org.springframework.stereotype.Service
-  public class UserService {
+  public class MyService {
+      private final com.example.repository.MyRepository repository;
 
-      private final UserRepository repository;
-
-      // Constructor injection
+      // Spring finds MyRepository bean and passes it here
       @org.springframework.beans.factory.annotation.Autowired
-      public UserService(UserRepository repository) {
+      public MyService(com.example.repository.MyRepository repository) {
           this.repository = repository;
       }
   }
   ```
+- **Setter-Based Injection**
+  - The container calls setter methods on your bean after invoking a no-argument constructor.
+  - Best for optional dependencies that can be assigned or changed later.
   ```java
-  // Configuration class
-  @org.springframework.context.annotation.Configuration
-  @org.springframework.context.annotation.ComponentScan(basePackages = "com.example")
-  public class AppConfig {
+  @org.springframework.stereotype.Service
+  public class MyService {
+      private com.example.repository.MyRepository repository;
+
+      @org.springframework.beans.factory.annotation.Autowired
+      public void setRepository(com.example.repository.MyRepository repository) {
+          this.repository = repository;
+      }
   }
   ```
-  ```java
-  // Loading Spring container
+- **XML-Based Injection (Legacy)**
+  - Dependencies are defined in a `beans.xml` file using `<constructor-arg>` or `<property>` tags.
+  - Useful for maintaining legacy systems or configuring third-party libraries where you cannot modify source code.
+  ```xml
+  <bean id="myRepo" class="com.example.repository.MyRepositoryImpl" />
 
-  org.springframework.context.ApplicationContext context =
-          new org.springframework.context.annotation.AnnotationConfigApplicationContext(AppConfig.class);
-
+  <bean id="myService" class="com.example.service.MyService">
+      <constructor-arg ref="myRepo" />
+  </bean>
   ```
-  - Annotations like `@Service`, `@Repository`, and `@Autowired` help automatically detect and inject beans.
-- **Common Types of DI used in Spring**
-  - **Constructor Injection** → dependency passed through constructor (recommended).
-  - **Setter Injection** → dependency injected through setter method.
-  - **Field Injection** → dependency injected directly into field using @Autowired.
 
 
 <br><br>
 
 **Name some of the important Spring Modules.**
 
-- Spring Framework is divided into multiple modules, each designed for a specific purpose.
-- Developers can use only the modules they need, which keeps the application lightweight and flexible.
-- **Spring Core / Spring Context Module**
-  - Provides Dependency Injection (DI) and IoC container.
-  - Responsible for creating and managing beans.
-  - `org.springframework.context.ApplicationContext`
-  ```java
-  // Creating Spring IoC container
+The Spring Framework is highly modular, meaning you can pick and choose only the parts you need for your application. This keeps your project lightweight and efficient.
 
-  org.springframework.context.ApplicationContext context =
-          new org.springframework.context.annotation.AnnotationConfigApplicationContext(AppConfig.class);
-  ```
-  - The container creates objects and injects dependencies automatically.
-- **Spring AOP Module**
-  - Provides support for Aspect-Oriented Programming.
-  - Used for cross-cutting concerns like:
-    - Logging
-    - Security
-    - Transaction management
-- **Spring DAO Module**
-  - Provides DAO (Data Access Object) abstraction layer.
-  - Simplifies database exception handling.
-  - Converts database exceptions into Spring’s consistent exception hierarchy.
-  - Example:
-    - `org.springframework.dao.DataAccessException`. This helps in handling database errors easily.
-- **Spring JDBC Module**
-  - Simplifies JDBC database operations.
-  - Provides `org.springframework.jdbc.core.JdbcTemplate` to remove boilerplate code.
-  ```java
-  // Using JdbcTemplate for database query
-
-  @org.springframework.beans.factory.annotation.Autowired
-  private org.springframework.jdbc.core.JdbcTemplate jdbcTemplate;
-
-  public int countUsers() {
-      return jdbcTemplate.queryForObject(
-          "SELECT COUNT(*) FROM users",
-          Integer.class
-      );
-  }
-
-  ```
-  - `JdbcTemplate` removes repetitive code like opening/closing connections and exception handling.
-- **Spring ORM Module**
-  - Provides integration with ORM frameworks such as:
-    - Hibernate
-    - JPA
-    - MyBatis
-  - Examples:
-    - `org.springframework.orm.jpa.JpaTransactionManager`. Helps manage transactions and session handling easily.
-- **Spring Web Module**
-  - Provides basic support for web-based applications.
-  - Includes features such as:
-    - File upload
-    - Web application context
-    - Integration with web frameworks
-  - Examples:
-    - `org.springframework.web.context.WebApplicationContext`
-- **Spring MVC Module**
-  - Provides Model-View-Controller architecture for building web applications and REST APIs.
-  - Separates:
-    - **Model** → business logic
-    - **View** → UI
-    - **Controller** → request handling
+- **Spring Module Architecture**
   ```mermaid
-  flowchart LR
-    A[Client Request] --> B[Controller]
-    B --> C[Service / Model]
-    C --> D[View or JSON Response]
+  graph TD
+    subgraph Web_Layer
+    W1[Spring Web / MVC]
+    W2[Spring WebFlux]
+    W3[WebSocket]
+    end
+
+    subgraph Data_Access_Integration
+    D1[Spring JDBC]
+    D2[Spring ORM]
+    D3[Spring Transactions]
+    end
+
+    subgraph Core_Container
+    C1[Spring Context]
+    C2[Spring Core / Beans]
+    C3[Spring Expression Language - SpEL]
+    end
+
+    subgraph AOP_Instrumentation
+    A1[Spring AOP]
+    A2[Spring Aspects]
+    end
+
+    Web_Layer --> Core_Container
+    Data_Access_Integration --> Core_Container
+    AOP_Instrumentation --> Core_Container
   ```
+  - **The Core Container:** The heart of the framework that manages how objects (Beans) are created and connected.
+  - **Layered Integration:** Higher-level modules (like Web or Data) sit on top of the Core Container.
+- **Spring Core & Context**
+  - The fundamental part of the framework.
+  - Provides the IoC Container. `org.springframework.context.ApplicationContext` is the main interface used to manage bean lifecycles and Dependency Injection.
+- **Spring AOP (Aspect-Oriented Programming)**
+  - Separates secondary tasks from main logic.
+  - Used for "Cross-Cutting Concerns" like logging, security, and declarative transactions. It allows you to add behavior to code without modifying the class itself.
+- **Spring JDBC & DAO**
+  - Simplifies database communication.
+  - `org.springframework.jdbc.core.JdbcTemplate` handles the "boring" parts of JDBC (opening/closing connections, handling SQL exceptions), reducing code by 60%.
+- **Spring ORM (Object-Relational Mapping)**
+  - Integration with database frameworks.
+  - Provides seamless integration with popular ORM tools like Hibernate, JPA, and JDO. It makes it easy to switch between different persistence providers.
+- **Spring Web & MVC**
+  - Building web layers.
+  - Spring MVC provides a Model-View-Controller architecture for creating standard web apps, while Spring Web contains common web-related tools (like file uploading).
+- Spring Test
+  - Support for testing.
+  - Provides classes for unit testing and integration testing with JUnit and TestNG, allowing you to load the Spring context during tests.
 
 
 <br><br>
 
 **What do you understand by Aspect-Oriented Programming?**
 
-- **Aspect-Oriented Programming (AOP)** is a programming technique used to separate cross-cutting concerns from business logic.
-- Cross-cutting concerns are functionalities that are required in multiple parts of the application, such as:
-  - Logging
-  - Transaction management
-  - Security
-  - Authentication
-  - Data validation
-- In Object-Oriented Programming (OOP), modularity is achieved using classes.
-- In AOP, modularity is achieved using Aspects.
-- **Problem without AOP**
-  - Cross-cutting logic (like logging) must be called manually in every class.
-  - This creates tight coupling and code duplication.
-  ```java
-  // Without AOP (Logging inside business logic)
-
-  public class UserService {
-
-      public void createUser() {
-          System.out.println("Logging: createUser method called"); // logging code
-          System.out.println("Creating user...");
-      }
-  }
-  ```
-  - Logging code is mixed with business logic.
-- **Solution with AOP**
-  - Logging logic is written in a separate Aspect class.
-  - Spring automatically executes it when the target method runs.
+- AOP is a programming paradigm that aims to increase modularity by allowing the separation of **Cross-Cutting Concerns**.
+- These are "secondary" tasks that happen in many parts of an application (e.g., logging, security, transaction management) but are not part of the main business logic.
+- In standard OOP, if 10 different methods need logging, you have to manually call the `logger.log()` method in all 10 places. This leads to **Code Tangling** (mixing logic with logging) and **Code Scattering** (duplicate code everywhere).
+- AOP "injects" this secondary logic automatically at runtime without changing the original source code.
+- **AOP vs. OOP Visualization**
   ```mermaid
-  flowchart LR
-    A[Client Call] --> B[Aspect - Logging]
-    B --> C[Business Method]
-  ```
-  - Aspect runs before or after the business method automatically.
-  - Business classes remain clean and focused on logic.
-- **Example of Spring AOP**
-  ```java
-  // Aspect class
+  graph TD
+    subgraph OOP_Standard_Approach
+    A[Service A] --> L1[Log Logic]
+    B[Service B] --> L1
+    C[Service C] --> L1
+    end
 
-  @org.aspectj.lang.annotation.Aspect
-  @org.springframework.stereotype.Component
-  public class LoggingAspect {
+    subgraph AOP_Approach
+    D[Service A]
+    E[Service B]
+    F[Service C]
+    G{Aspect: Logging}
+    G -.->|Cuts Across| D
+    G -.->|Cuts Across| E
+    G -.->|Cuts Across| F
+    end
 
-      // Advice executed before method
-      @org.aspectj.lang.annotation.Before("execution(* com.example.service.*.*(..))")
-      public void logBefore() {
-          System.out.println("Logging before method execution");
-      }
-  }
+    style G fill:#f8d7da,stroke:#dc3545
   ```
-  ```java
-  // Business class
-
-  @org.springframework.stereotype.Service
-  public class UserService {
-
-      public void createUser() {
-          System.out.println("User created");
-      }
-  }
-  ```
-  - The logging method runs automatically before service methods.
-- **Flow:**
-  ```mermaid
-  flowchart TD
-    A[Client Request] --> B[Spring AOP Proxy]
-    B --> C[Logging Aspect]
-    C --> D[Business Method Execution]
-  ```
-  - Spring creates a proxy around the target object.
-  - The proxy executes aspects before/after the actual method.
+  - **OOP:** Modularity is vertical (Classes/Objects).
+  - **AOP:** Modularity is horizontal (Aspects that "cut across" multiple classes).
+- **Advantages of AOP**
+  - **Cleaner Code:** Business logic remains "pure" and focused on its primary task.
+  - **Easy Maintenance:** If you need to change how logging works, you change it in one Aspect class instead of 100 different Service classes.
+  - **Centralized Configuration:** You can turn off security or logging for the whole app by simply disabling the Aspect.
 
 
 <br><br>
