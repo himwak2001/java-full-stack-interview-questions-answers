@@ -2218,3 +2218,97 @@ The choice between `@Autowired` and `@Inject` often comes down to whether you pr
 - **Aspect-Oriented Programming (AOP)**
   - **Narrow Pointcuts:** Keep your JoinPoints as specific as possible. If an Aspect is too broad, it can accidentally intercept internal Spring methods or unwanted library calls, leading to performance issues or bugs.
   - **Custom Annotations:** Instead of complex regex pointcuts, create a custom annotation (e.g., `@LogExecutionTime`) and target your Aspect to that annotation. It makes the code much more readable.
+
+
+<br>
+
+### Spring Framework 6
+
+**What is the "Baseline" change in Spring Framework 6?**
+
+Spring 6 introduced a major "Binary Baseline" shift.
+
+- **Java 17+:** Spring 6 requires a minimum of Java 17. It leverages modern Java features like Records, Sealed Classes, and the new `java.time` API internally.
+- **Jakarta EE 9+:** It moved from the `javax.*` namespace to `jakarta.*`. This means if you migrate an old Spring 5 app, you must update all your imports (e.g., `javax.servlet` to `jakarta.servlet`).
+- **Why it matters:** This shift allows Spring to stay compatible with the latest application servers (Tomcat 10, Jetty 11) and cloud-native environments.
+
+
+<br><br>
+
+**Can you explain Ahead-of-Time (AOT) Processing and GraalVM Support?**
+
+This is the "star" feature of Spring 6.
+
+- **The "Elevator Pitch"**
+  - The Concept: It shifts the application "discovery" process from Runtime (when the app starts) to Build-time (when you compile the code).
+  - **Spring AOT’s Role:** During the build, Spring scans your annotations (`@Service`, `@Autowired`) and generates Static Java Source Code. This removes the need for heavy "Reflection" and classpath scanning when the app boots up.
+  - **GraalVM’s Role:** It takes that static code, performs "**Closed-World Analysis**" (removing any unused parts of the JDK or libraries), and compiles everything into a Native **Executable Binary** (e.g., a .exe or Linux binary).
+- **The Core Benefits (The "Why")**
+  - **Instant Startup:** Startup time drops from seconds to milliseconds (e.g., 10s $\rightarrow$ 0.1s). This is a game-changer for Serverless (AWS Lambda) and Kubernetes scaling.
+  - **Memory Efficiency:** By eliminating the JIT compiler and unused code, RAM usage is often reduced by 3x to 5x, significantly lowering cloud hosting costs.
+  - **No JVM Required:** The final binary is standalone; you don't need to install a JDK/JRE on the production server or inside your Docker container.
+
+
+<br><br>
+
+**What are HTTP Interface Clients in Spring 6?**
+
+Spring 6 introduced a new way to define HTTP service clients using a declarative Java interface, similar to how Feign or Retrofit works.
+
+- **How it works:** You define an interface with `@HttpExchange` annotations. Spring then generates a proxy that performs the actual network calls using `WebClient` or `RestTemplate`.
+- **Code Example:**
+  ```java
+  public interface UserClient {
+      @GetExchange("/users/{id}")
+      User getUser(@PathVariable Long id);
+  }
+
+  // In configuration
+  HttpServiceProxyFactory factory = HttpServiceProxyFactory
+      .builder(WebClientAdapter.forClient(webClient)).build();
+  UserClient client = factory.createClient(UserClient.class);
+  ```
+- **Benefit:** It removes the boilerplate code of manually building URLs and handling headers for every API call.
+
+
+<br><br>
+
+**How does Spring 6 handle Observability (Micrometer Integration)?**
+
+In Spring 5, "Metrics" (Micrometer) and "Tracing" (Spring Cloud Sleuth) were separate. In Spring 6, they are unified under the Micrometer Observation API.
+
+- **Unified API:** One single API now records both metrics (how long it took) and traces (the path the request took through the system).
+- **Context Propagation:** Spring 6 ensures that "Observation Context" is automatically passed along through different threads and reactive streams.
+- **Benefit:** It makes monitoring and debugging microservices in production much easier without adding extra libraries.
+
+
+
+<br><br>
+
+**What is the RFC 7807 "Problem Details" support?**
+
+In the past, every Spring developer had to create their own ErrorResponse POJO to return error details to a REST client.
+
+- **Standardization:** Spring 6 implements RFC 7807, a standard specification for reporting errors in HTTP APIs.
+- **ProblemDetail:** Spring now provides a `org.springframework.http.ProblemDetail` class. When an exception occurs, Spring can automatically return a standardized JSON structure including `type`, `title`, `status`, and `detail`.
+- **Benefit:** Frontend developers can expect a consistent error format across all your microservices.
+
+
+<br><br>
+
+**What is the "Bean Data Definition" improvement?**
+
+Spring 6 optimized how it stores metadata about your beans.
+
+- **The Change:** It now uses a more memory-efficient way to store bean definitions. By avoiding heavy reflection at runtime where possible, the framework "footprint" (RAM usage) is smaller.
+- **Impact:** This is especially visible when running hundreds of microservices in a Kubernetes cluster; the total memory savings across the cluster can be substantial.
+
+
+<br><br>
+
+**What are the changes in the Scheduling API?**
+
+Spring 6 enhanced the `@Scheduled` annotation to support more flexible configurations.
+
+- **Enqueued Tasks:** It provides better support for managing tasks that might overlap.
+- **Custom Scheduling:** You can now more easily plug in external schedulers or handle "One-time" tasks more effectively using the updated `TaskScheduler` interface.
