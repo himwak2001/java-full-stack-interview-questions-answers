@@ -103,3 +103,72 @@ graph LR
     D --> F
     E --> F
 ```
+
+
+<br>
+
+### Hands-On: Creating Users and Groups
+
+1. **Service Discovery and User Creation:**
+    ![My Image](screenshots/iam_image_1.png)
+2. **Group Creation and Setting Permissions**
+    ![My Image](screenshots/iam_image_2.png)
+3. **Successful User Creation**
+    ![My Image](screenshots/iam_image_3.png)
+4. **Creating Custom Alias and Accessing IAM Users**
+    ![My Image](screenshots/iam_image_4.png)
+
+
+<br>
+
+### IAM Policies
+
+**IAM Policies Inheritance**
+
+- **Group-Based Inheritance:** When a policy is attached to a group, every user in that group inherits those permissions automatically.
+  - ***Example:*** Alice and Bob inherit the "Developers" policy.
+- **Multi-Group Aggregation:** If a user belongs to multiple groups, they inherit the union of all permissions from those groups.
+  - ***Example:*** Charles inherits permissions from both the "Developers" group and the "Audit Team" group.
+- **Inline Policies:** These are policies attached directly to a specific user rather than a group.
+  - ***Example:*** Fred has an "inline" policy. This is usually reserved for "one-off" permissions that shouldn't apply to anyone else.
+
+
+<br>
+
+**IAM Policy Structure (The JSON Deep-Dive)**
+
+```json
+{
+  "Version": "2012-10-17",
+  "Id": "S3-Account-Permissions",
+  "Statement": [
+    {
+      "Sid": "1",
+      "Effect": "Allow",
+      "Principal": {
+        "AWS": ["arn:aws:iam::123456789012:root"]
+      },
+      "Action": [
+        "s3:GetObject",
+        "s3:PutObject"
+      ],
+      "Resource": ["arn:aws:s3:::mybucket/*"],
+      "Condition": { ... }
+    }
+  ]
+}
+```
+
+| Element | Purpose | Requirement |
+|:-|:-|:-|
+| **Version** | Policy language version. Always use `"2012-10-17"`. | Required |
+| **Id** | An optional identifier for the policy itself. | Optional |
+| **Statement** | The main container for the policy rules. | Required |
+| **Sid** | Statement ID; an optional label to distinguish statements. | Optional |
+| **Effect** | Whether the rule Allows or Denies access. | Required |
+| **Principal** | The specific account/user/role this policy applies to. | Required in some cases* |
+| **Action** | The list of actions this policy allows or denies. | Required |
+| **Resource** | The specific resource (ARN) the action applies to. | Required |
+| **Condition** | Logic to determine when the policy is in effect (e.g., IP range). | Optional |
+
+
