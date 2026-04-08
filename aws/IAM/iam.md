@@ -182,3 +182,51 @@ graph LR
    ![My Image](screenshots/iam_image_6.png)
 3. **Policy Validation:**
    ![My Image](screenshots/iam_image_7.png)
+
+
+<br>
+
+### IAM MFA
+
+This covers the "human" side of IAM security - specifically, how to protect account access using Password Policies and Multi-Factor Authentication (MFA).
+
+<br>
+
+**IAM Password Policy**
+
+A password policy is a set of rules defined by an administrator to ensure that all IAM users create strong, secure passwords.
+
+#### Key Configuration Options
+
+- **Complexity Requirements:** Force users to include uppercase, lowercase, numbers, and non-alphanumeric characters (e.g., `!@#$%`).
+- **Minimum Length:** Set a character limit (e.g., at least 12 characters).
+- **Password Rotation (Expiration):** Force users to change their password every 90 days.
+- **Prevention of Re-use:** Prevents a user from switching back to an old password.
+- **Self-Service:** You can allow users to change their own passwords to reduce administrative overhead.
+
+<br>
+
+**Multi-Factor Authentication (MFA)**
+
+MFA is the single most important security layer for your AWS account. It follows the principle of:
+
+**Something you know** (Password) + **Something you own** (Security Device) = **Successful Login**
+
+#### The Main Benefit
+
+If your password is stolen or hacked, the account remains safe because the attacker does not have physical access to your MFA device. **You should always enable MFA for your Root Account and high-privilege IAM users**.
+
+
+<br>
+
+**MFA Device Options in AWS**
+
+AWS supports three main categories of MFA devices as shown in the table:
+
+| Device Type | Examples | Description |
+|:-|:-|:-|
+| Virtual MFA | Google Authenticator, Authy | An app on your phone. Supports multiple tokens on one device. Great for developers. |
+| U2F Security Key | YubiKey | A physical USB key. Supports multiple users/accounts on one single key. Very secure. |
+| Hardware Key Fob | Gemalto, SurePassID | A dedicated physical device that displays a rotating code. Used in high-security/GovCloud environments. |
+
+
