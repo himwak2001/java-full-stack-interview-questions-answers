@@ -107,7 +107,7 @@ graph LR
 
 <br>
 
-### Hands-On: Creating Users and Groups
+**Hands-On: Creating Users and Groups**
 
 1. **Service Discovery and User Creation:**
     ![My Image](screenshots/iam_image_1.png)
@@ -172,3 +172,13 @@ graph LR
 | **Condition** | Logic to determine when the policy is in effect (e.g., IP range). | Optional |
 
 
+<br>
+
+**Hands-On: Creating Policy**
+
+1. **Policy Options:**
+   ![My Image](screenshots/iam_image_5.png)
+2. **Policy Creation:**
+   ![My Image](screenshots/iam_image_6.png)
+3. **Policy Validation:**
+   ![My Image](screenshots/iam_image_7.png)
