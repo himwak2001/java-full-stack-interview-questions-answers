@@ -230,3 +230,13 @@ AWS supports three main categories of MFA devices as shown in the table:
 | Hardware Key Fob | Gemalto, SurePassID | A dedicated physical device that displays a rotating code. Used in high-security/GovCloud environments. |
 
 
+<br>
+
+**Hands-On: IAM MFA**
+
+1. **Setting Password Policy:**
+   ![My Image](screenshots/iam_image_8.png)
+2. **Setting MFA Policy:**
+   ![My Image](screenshots/iam_image_9.png)
+3. **Configuring MFA**
+   ![My Image](screenshots/iam_image_10.png)
