@@ -65,12 +65,35 @@
    - A "Server-side Template Engine." It’s used to build web pages where the HTML is generated on the server (like the old JSF or JSP days, but much cleaner).
  
 
+<br><br>
+
+**How will you run your Spring Boot application?**
+
+- **Execution via the Main Method:** Every Spring Boot project has a class containing a standard Java `public static void main` method. When executed, it calls `SpringApplication.run()`, which triggers the bootstrapping process: starting the JVM, launching the Spring IoC container, and initializing the embedded web server.
+- **The "Fat JAR" Architecture:** In professional production environments (Docker/Kubernetes), we package the app as a "Fat JAR" using the `spring-boot-maven-plugin`. Unlike a traditional JAR, this contains your compiled code and every dependency JAR (like Hibernate or Tomcat) nested inside it. You run it using the command `java -jar appname.jar`.
+- **The Role of JarLauncher:** When you run that JAR, Spring Boot doesn't use the standard Java ClassLoader. It uses a custom `JarLauncher` that knows how to read classes from those nested JARs. This is why a single file is all you need to deploy a complex microservice.
+- **CLI and Build Tools:** You can also run the app using mvn `spring-boot:run`. This is common in local development because it integrates with Spring Boot DevTools, allowing for "Hot Swapping" (restarting the context automatically when you save a file) without manual rebuilds.
 
 
+<br><br>
+
+**What is the purpose of `@SpringBootApplication`?**
+
+This is a Meta-Annotation a single shortcut that bundles three powerful engines. Understanding these is the difference between a junior and a senior developer:
+
+- **`@Configuration` (The Bean Blueprint):** This tells Spring that the class is a source of bean definitions. It replaces the thousands of lines of XML we used to write in legacy Spring. Any method inside this class marked with `@Bean` will be managed by the Spring container.
+- **`@ComponentScan` (The Discovery Engine):** This tells Spring where to look for your code. It scans the package of the main class and all its sub-packages for classes marked with `@Component`, `@Service`, `@Repository`, or `@RestController`. Interview Catch: If your Controller is in a package that is not a sub-package of the main class, Spring will never find it, and you will get a 404 error.
+- **`@EnableAutoConfiguration` (The SPI Magic):** This is the "brain" of Spring Boot. It looks at your Classpath. If it finds `h2.jar`, it automatically creates an in-memory database bean. If it finds `spring-boot-starter-web`, it automatically configures Tomcat and Jackson (for JSON). It does this by reading a file named `spring.factories` (or `org.springframework.boot.autoconfigure.AutoConfiguration.imports` in newer versions) which lists every possible configuration Spring knows how to handle.
 
 
+<br><br>
 
+**Can I use these 3 annotations separately instead of `@SpringBootApplication`?**
 
+- **The Direct Answer:** Yes, you can. If you replace `@SpringBootApplication` with those three specific annotations manually, the application will work exactly the same way. The combined annotation is simply a "convenience" provided by the developers.
+- **Practical Reason - Selective Exclusion:** In high-scale product-based environments, we sometimes use them separately to exclude certain auto-configurations. For example, if you have a Database dependency but want to run a specific test or module without a database connection, you can use `@EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class})`.
+- **Architectural Control:** Sometimes you want your `@ComponentScan` to point to a completely different package structure than where your main class resides. Using them separately gives you the "fine-grained" control to tell Spring exactly where to scan and what to ignore, which can slightly improve startup performance in massive monolithic projects.
+- **The Senior Perspective:** While 99% of projects use the shorthand, knowing they are separate allows you to troubleshoot "Bean Conflict" issues. If two different "Starters" are trying to configure the same bean, you break them apart to manually resolve the conflict.
 
 
 
