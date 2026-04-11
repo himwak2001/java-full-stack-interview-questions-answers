@@ -96,6 +96,112 @@ This is a Meta-Annotation a single shortcut that bundles three powerful engines.
 - **The Senior Perspective:** While 99% of projects use the shorthand, knowing they are separate allows you to troubleshoot "Bean Conflict" issues. If two different "Starters" are trying to configure the same bean, you break them apart to manually resolve the conflict.
 
 
+<br><br>
+
+**What is Auto-configuration in Spring Boot?**
+
+- Auto-configuration is a runtime mechanism where Spring Boot automatically defines and registers beans in the ApplicationContext based on the dependencies present in your classpath. It follows the Convention over Configuration philosophy, assuming sensible defaults so you don't have to write boilerplate code.
+- In Spring Boot 3.x, the framework uses the Service Provider Interface (SPI) pattern. It looks for a specific file: `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports`. This file contains a list of full-qualified names of configuration classes.
+- Auto-configuration is not "blind" loading. It uses Conditional Annotations (like `@ConditionalOnClass`, `@ConditionalOnMissingBean`, and `@ConditionalOnProperty`). For example, if the `DataSource` class is on the classpath, the `DataSourceAutoConfiguration` class get triggers. However, if you have already defined your own `DataSource` bean, the `@ConditionalOnMissingBean` check fails, and Spring Boot steps back, letting your custom bean take priority.
+- If you add `spring-boot-starter-web`, Spring Boot detects the embedded Tomcat classes and automatically configures a DispatcherServlet, a ViewResolver, and starts the server on port 8080 - all without a single line of XML or Java config.
+
+<br><br>
+
+**How can you disable a specific auto-configuration class in Spring Boot?**
+
+- **Via the `@SpringBootApplication` Annotation:** The most common way is using the `exclude` attribute. This is useful when an auto-configuration is interfering with your custom logic or causing startup failures (like JPA trying to connect to a non-existent DB).
+  ```java
+  @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})
+  ```
+- **Via Property Files:** In production environments, you might want to disable a configuration without changing and recompiling the code. You can use the `spring.autoconfigure.exclude` property in your `application.properties` or `application.yml`.
+  ```properties
+  spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration 
+  ```
+- **Selective Exclusion for Testing:** If you are running an Integration Test and want to disable Security or Cloud-specific configs, you can use the `@TestPropertySource` or `@EnableAutoConfiguration(exclude = ...)` specifically on your test class to keep the test environment lightweight.
+- When you exclude a class, Spring Boot's `AutoConfigurationImportSelector` filters it out of the list of candidate configurations fetched from the .imports file, ensuring that the `@Conditional` checks for that specific class are never even evaluated.
+
+<br><br>
+
+**How can you customize the default configuration in Spring Boot?**
+
+- **Externalized Configuration (Properties/YAML):** This is the "First Line of Defense." Spring Boot exposes thousands of properties. If you want to change the server port or DB connection string, you don't write code; you simply override the property in `application.properties`.
+  ```yaml
+  server:
+    port: 9090
+  ```
+- **Providing a Custom Bean:** Spring Boot’s auto-configuration classes almost always use `@ConditionalOnMissingBean`. If you define your own Bean of the same type in a `@Configuration` class, Spring Boot will see your bean first and "back off," disabling its own default bean. This is the most professional way to swap out a component (like using a custom `RestTemplate` or `SecurityFilterChain`).
+
+
+<br><br>
+
+**Architectural Decision Flow**
+
+```mermaid
+graph TD
+    Start[App Startup] --> Detect[Read AutoConfiguration.imports]
+    Detect --> Exclude{Is class Excluded?}
+    Exclude -- Yes --> Skip[Ignore Configuration]
+    Exclude -- No --> ClassCheck{Is required Library on Classpath?}
+    ClassCheck -- No --> Skip
+    ClassCheck -- Yes --> BeanCheck{Has user defined this Bean?}
+    BeanCheck -- Yes --> BackOff[Spring Boot 'Backs Off']
+    BeanCheck -- No --> Register[Register Default Auto-Config Bean]
+    
+    style Register fill:#4CAF50,color:#fff
+    style BackOff fill:#FF9800,color:#fff
+    style Skip fill:#f44336,color:#fff
+```
+
+<br><br>
+
+**How Spring boot run() method works internally ?**
+
+- **Step 1: Initializer & Listener Setup:** When you call `SpringApplication.run()`, it first creates a new `SpringApplication` instance. Internally, it identifies "Initializers" and "Listeners" from the `META-INF/spring.factories` (or `.imports` in Boot 3) to prepare the ground for the environment.
+- **Step 2: Starting the StopWatch:** It starts a `StopWatch` to measure the startup time (which you see in the console logs). It then triggers the `SpringApplicationRunListeners` to announce that the app is starting.
+- **Step 3: Environment Preparation:** It prepares the `ConfigurableEnvironment`. This involves loading your `application.properties`, system variables, and command-line arguments. This is where the framework decides which Spring Profiles are active.
+- **Step 4: Create ApplicationContext:** Based on your classpath, it decides which context to create. For a web app, it creates an `AnnotationConfigServletWebServerApplicationContext`. This is the "brain" that will hold all your beans.
+- **Step 5: Bean Registration & Refresh:** This is the heaviest part. The context performs the Component Scan, discovers your `@Service` and `@Controller` classes, and registers them as `BeanDefinitions`. Then comes the `refresh()` phase, where all beans are instantiated, wired together (Dependency Injection), and post-processors are executed.
+- **Step 6: Kick-starting the Embedded Server:** Unlike traditional Spring, the embedded server (Tomcat/Jetty) is started during the `refresh()` phase. The context creates a `WebServer` bean, which triggers the server to start on the configured port (default 8080).
+
+
+<br><br>
+
+**What is Command Line Runner in Spring Boot?**
+
+- CommandLineRunner is a functional interface used to run a specific block of code exactly once after the ApplicationContext is fully initialized but before the run() method finishes execution.
+- In banking or product environments, it’s often used for "Warm-up" tasks: seeding master data into a cache, verifying database connections, or running one-time migration scripts.
+- It provides access to the raw string array of command-line arguments passed to the application.
+  ```java
+  @Component
+  public class DataInitializer implements CommandLineRunner {
+      @Override
+      public void run(String... args) throws Exception {
+          System.out.println("App started with: " + Arrays.toString(args));
+          // Logic to seed database
+      }
+  }
+  ```
+- While `CommandLineRunner` gives you raw strings, `ApplicationRunner` gives you `ApplicationArguments`, which is a more sophisticated object that parses arguments into keys and values (e.g., `--port=8080`).
+- If you have multiple runners, you can use the `@Order` annotation to specify the sequence of execution. This is critical if one initialization task depends on another being finished first.
+- Internal Flow Visualized
+  ```mermaid
+  sequenceDiagram
+    participant M as Main Method
+    participant SA as SpringApplication
+    participant E as Environment
+    participant AC as ApplicationContext
+    participant TS as Tomcat/Server
+    participant CR as CommandLineRunner
+
+    M->>SA: run(MyClass.class, args)
+    SA->>E: Prepare Environment (Properties/Profiles)
+    SA->>AC: Create Context
+    AC->>AC: Component Scan & Bean Registration
+    AC->>TS: Start Embedded Server
+    AC->>AC: Complete Refresh
+    SA->>CR: Execute run() methods
+    SA-->>M: App Started Successfully
+  ```
 
 
 
