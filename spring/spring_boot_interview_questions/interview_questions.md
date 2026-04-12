@@ -204,14 +204,270 @@ graph TD
   ```
 
 
+<br><br>
+
+**Can you explain the purpose of Stereotype annotations in the Spring Framework?**
+
+- Stereotype annotations are markers that tell Spring, "This class has a specific role in the application architecture." They allow Spring's Component Scan to automatically discover classes and register them as Beans in the ApplicationContext.
+- While `@Component` is the generic parent, we use specialized stereotypes for clarity and to enable specific framework behaviors:
+  - **`@Controller` / `@RestController`:** Marks the class as a web entry point. It handles HTTP requests and enables Spring MVC features.
+  - **`@Service`:** Marks the class for Business Logic. While it functions like `@Component`, using `@Service` clearly identifies where the core "meat" of the application resides.
+  - **`@Repository`:** Marks the Data Access Layer. Crucially, it also enables automatic Persistence Exception Translation, converting low-level SQL/JPA exceptions into Spring’s readable DataAccessException hierarchy.
+- Using specific stereotypes improves code readability (Domain-Driven Design) and allows you to apply AOP (Aspect-Oriented Programming) pointcuts to specific layers (e.g., "log all methods in classes marked with `@Service`").
 
 
+<br><br>
+
+**How can you define a Bean in Spring Framework?**
+
+There are three primary ways to define a bean, and knowing which to use is a sign of experience:
+
+- **Stereotype Annotations (Implicit):** You mark a class with `@Component`, `@Service`, etc. Spring finds it during the scan and manages its lifecycle. This is the go-to for your own internal code.
+- **Java-Based Configuration (Explicit):** You use a `@Configuration` class and define methods with the `@Bean` annotation. This is used when you need to configure Third-Party Libraries (like a `ModelMapper` or `BCryptPasswordEncoder`) where you cannot modify the source code to add `@Component`.
+  ```java
+  @Configuration
+  public class AppConfig {
+      @Bean
+      public RestTemplate restTemplate() {
+          return new RestTemplate();
+      }
+  }
+  ```
+- **XML Configuration (Legacy):** While rare in Spring 6, you may encounter it in older banking systems. You define beans in a `beans.xml` file. It is largely replaced by Java Config for better type safety and refactoring support.
 
 
+<br><br>
+
+**What is Dependency Injection (DI)?**
+
+- DI is a design pattern where an object does not create its own dependencies. Instead, those dependencies are "injected" into it by an external entity (the Spring IoC Container).
+- DI is a specific implementation of IoC. Instead of the developer controlling the object lifecycle (`new MyService()`), the control is "inverted" to the framework.
+- The primary goal is Decoupling. By injecting dependencies (usually interfaces), you make your code modular and highly Testable. You can easily swap a real `DatabaseService` with a `MockDatabaseService` during unit testing without changing the dependent class.
 
 
+<br><br>
 
+**How many ways can we perform Dependency Injection in Spring?**
 
+There are three main types, but only one is the "Industry Gold Standard":
 
+- **Constructor Injection:** Dependencies are provided through the class constructor.
+  - **Why it's preferred:** It ensures the bean is Immutable (once the object is created, we won't be able to modify it) and prevents the object from ever being in an "incomplete" state (null dependencies). It also makes it clear which dependencies are required.
+  ```java
+  private final MyRepository repository;
+  public MyService(MyRepository repository) { this.repository = repository; }
+  ```
+- **Setter Injection:** Dependencies are provided via setter methods. This is used for Optional Dependencies that can be changed or injected later. It allows for circular dependencies, though these are generally considered a "code smell."
+- **Field Injection (The "Avoid" Way):** Using `@Autowired` directly on the variable.
+  - **The Catch:** It is heavily discouraged in Spring 6. It makes unit testing harder (requires Reflection to mock) and hides dependencies from the constructor. Top product companies will flag this during code reviews.
 
  
+<br><br>
+
+**Architectural Perspective (Decision Flow)**
+
+```mermaid
+graph TD
+    Start[Need to manage an Object?] --> OwnCode{Is it your code?}
+    OwnCode -- Yes --> Stereo["@Component / @Service"]
+    OwnCode -- No --> JavaConfig["@Bean in @Configuration class"]
+    
+    Stereo --> Inject[How to Inject?]
+    JavaConfig --> Inject
+    
+    Inject --> Required{Required?}
+    Required -- Yes --> Const[Constructor Injection]
+    Required -- No --> Setter[Setter Injection]
+    
+    style Const fill:#4CAF50,color:#fff
+    style Setter fill:#FF9800,color:#fff
+```
+
+
+<br><br>
+
+**Where you would choose Setter Injection over Constructor Injection, and vice versa?**
+
+1. **Constructor Injection (The Mandatory Choice)**
+   - Dependencies are provided at the moment of object creation. In Spring 6, if your class has only one constructor, the `@Autowired` annotation is optional.
+   - It ensures the bean is Immutable (using final fields). It also prevents a "partially initialized" object; the bean simply won't start if a required dependency is missing. This makes unit testing easier because you can't instantiate the class without providing the mocks.
+    ```java
+    @Service
+    public class TradeService {
+        // Final ensures the dependency cannot be changed after initialization
+        private final TradeRepository repository;
+
+        // Standard for Spring 6: Constructor Injection
+        public TradeService(TradeRepository repository) {
+            this.repository = repository;
+        }
+        
+        public void executeTrade() {
+            repository.save(new Trade());
+        }
+    }
+    ```
+2. **Setter Injection (The Optional Choice)**
+   - Dependencies are injected via public setter methods after the bean instance is created.
+   - Use this for Optional Dependencies. If your service can function with a "default" behavior and only needs a specific bean to override that behavior occasionally, setters are appropriate.
+   - If `ServiceA` needs `ServiceB` and vice-versa, Constructor Injection will fail (App crash). Setter injection allows Spring to create the "raw" objects first and link them later, breaking the cycle.
+    ```java
+    @Service
+    public class NotificationService {
+        private EmailClient emailClient;
+
+        // Setter Injection for an optional dependency
+        @Autowired
+        public void setEmailClient(EmailClient emailClient) {
+            this.emailClient = emailClient;
+        }
+
+        public void notifyUser() {
+            if (emailClient != null) {
+                emailClient.send("Hello!");
+            } else {
+                System.out.println("No email client configured, skipping...");
+            }
+        }
+    }
+    ```
+
+<br><br>
+
+**What is Circular Dependency?**
+
+It occurs when Bean A depends on Bean B, and Bean B depends on Bean A. This creates a "Chicken and Egg" problem.
+
+1. **Constructor Injection (The Failure)**
+   - This is the most "strict" scenario. When Spring tries to create `ServiceA`, it sees it needs `ServiceB`. It pauses to create `ServiceB`, but then sees it needs `ServiceA`. Since neither can be fully instantiated, the application fails at startup with a `BeanCurrentlyInCreationException`.
+    ```java
+    @Service
+    public class ServiceA {
+        private final ServiceB serviceB;
+        // Spring starts here, but can't find a finished ServiceB
+        public ServiceA(ServiceB serviceB) {
+            this.serviceB = serviceB;
+        }
+    }
+
+    @Service
+    public class ServiceB {
+        private final ServiceA serviceA;
+        // Spring pauses here, needing ServiceA
+        public ServiceB(ServiceA serviceA) {
+            this.serviceA = serviceA;
+        }
+    }
+    ```
+2. **Setter/Field Injection (The Workaround)**
+   - Spring handles circular dependencies via Setter Injection or Field Injection using a "three-stage cache" mechanism.
+     - Spring creates the "raw" instance of `ServiceA` (using the default constructor).
+     - It stores this uninitialized instance in a temporary cache.
+     - It then injects the dependencies. Because the "raw" object already exists in memory, the circle is technically broken.
+    ```java
+    @Service
+    public class ServiceA {
+        @Autowired
+        private ServiceB serviceB; // Injected after ServiceA is created
+    }
+
+    @Service
+    public class ServiceB {
+        @Autowired
+        private ServiceA serviceA; // Injected after ServiceB is created
+    }
+    ```
+3. **The Best Practice Solution: `@Lazy`**
+   - If you are forced to use Constructor Injection but have a circular dependency, you can use the `@Lazy` annotation. This tells Spring: "Don't inject the actual bean yet; inject a Proxy instead." The real bean is only initialized the first time a method is called on it.
+    ```java
+    @Service
+    public class ServiceA {
+        private final ServiceB serviceB;
+
+        public ServiceA(@Lazy ServiceB serviceB) {
+            this.serviceB = serviceB;
+        }
+    }
+    ```
+
+<br><br>
+
+**Real-world use case where `@PostConstruct` is particularly useful?**
+
+- `@PostConstruct` is a lifecycle callback. It tells Spring to execute a method after the bean has been fully initialized and all dependencies have been injected.
+- You cannot perform certain logic in the constructor if that logic depends on `@Autowired` fields or `@Value` properties, because those aren't populated when the constructor runs.
+- **Real-World Example (Banking/Product):** Imagine a `CurrencyExchangeService`.
+  - The class is created (Constructor).
+  - The API Key is injected from properties (DI).
+  - `@PostConstruct` triggers a one-time call to an external API to fetch and cache the initial exchange rates so the service is "warm" and ready before the first user request hits.
+  ```java
+  @Service
+  public class CacheWarmer {
+      @Autowired private CacheManager cache;
+
+      @PostConstruct
+      public void init() {
+          // Logic to load master data into Redis or local cache
+          cache.loadInitialData(); 
+      }
+  }
+  ```
+
+<br><br>
+
+**How can we dynamically load values in a Spring Boot application? (`@Value`)**
+
+1. **Using the `@Value` Annotation**
+  - This is a field-level injection method. It uses **SpEL (Spring Expression Language)** to pull values from your `application.properties`, YAML files, or environment variables.
+  - A common requirement in banking apps is "Fail-Safe" configurations. You can use the `:` syntax to provide a default value if the key is missing, preventing the `BeanCreationException`.
+  - Best for injecting single, standalone configuration points like a specific API timeout or a feature flag.
+    ```java
+    @Component
+    public class PaymentGateway {
+
+        // Pulls from application.properties; defaults to 3000 if not found
+        @Value("${payment.timeout:3000}")
+        private int timeout;
+
+        // Supports SpEL for complex logic
+        @Value("#{systemProperties['user.home']}")
+        private String userHome;
+
+        public void process() {
+            System.out.println("Connecting with timeout: " + timeout);
+        }
+    }
+    ```
+2. **Using the `Environment` Class**
+   - The `Environment` interface is a central part of the `ApplicationContext`. It represents the "entire world" of properties available to the app (System properties, Env variables, and Config files).
+   - Unlike `@Value`, which is resolved when the bean is created (static), the `Environment` object can be queried at any time during the application's execution.
+   - It provides built-in methods to check which Spring Profiles (e.g., `dev`, `prod`) are currently active, which is critical for banking apps that behave differently across environments.
+   - It offers a `getProperty(key, targetType, defaultValue)` method, which handles the conversion from String to Integer/Boolean safely.
+    ```java
+    @Service
+    public class NetworkConfig {
+
+        private final Environment env;
+
+        // Constructor Injection is preferred for Environment
+        public NetworkConfig(Environment env) {
+            this.env = env;
+        }
+
+        public void checkSecurity() {
+            // Querying values dynamically
+            String port = env.getProperty("server.port");
+            
+            // Checking Active Profiles
+            if (env.acceptsProfiles(Profiles.of("prod"))) {
+                System.out.println("Running in Production Mode");
+            }
+        }
+    }
+    ```
+
+
+
+
+
+
