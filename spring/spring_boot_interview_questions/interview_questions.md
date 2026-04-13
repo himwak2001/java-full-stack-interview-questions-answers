@@ -466,8 +466,147 @@ It occurs when Bean A depends on Bean B, and Bean B depends on Bean A. This crea
     }
     ```
 
+<br><br>
+
+**Can you explain the key differences between YML and properties files, and in what scenarios you might prefer one format over the other?**
+
+- **Syntax and Structure:** Properties files use a flat, key-value pair format (`a.b.c=value`). YAML (YAML Ain't Markup Language) is indentation-based and hierarchical, which visually represents the relationship between properties.
+- **Hierarchy and Redundancy:** In Properties, you must repeat the prefix for every single line. YAML uses "nested" blocks, which significantly reduces boilerplate and makes the file smaller and easier to manage as the project grows.
+- **Support for Lists and Arrays:** YAML has native support for lists and maps using simple bullet points or brackets. Properties files require cumbersome indexing (e.g., `app.servers[0]=xyz`), which is prone to manual errors when adding new items.
+- **Complex Data Types:** YAML is a superset of JSON, meaning it can handle complex data structures and maps naturally. This is why it is the standard for Kubernetes, Docker, and Cloud-native Spring applications.
+- **Readability:** YAML is designed to be human-readable. In a banking application with hundreds of security and database configs, a hierarchical YAML file allows a developer to see the "big picture" of a module at a single glance.
+- **Comparison Code Snippet**
+  - **`application.properties`**
+    ```properties
+    spring.datasource.url=jdbc:mysql://localhost:3306/db
+    spring.datasource.username=root
+    spring.datasource.password=secret
+
+    # Lists are flat and repetitive
+    app.allowed-origins[0]=https://bank.com
+    app.allowed-origins[1]=https://api.bank.com
+    ```
+  - **`application.yml`**
+    ```yaml
+    spring:
+        datasource:
+            url: jdbc:mysql://localhost:3306/db
+            username: root
+            password: secret
+
+        # Lists are intuitive and clean
+        app:
+        allowed-origins:
+            - https://bank.com
+            - https://api.bank.com
+    ```
 
 
+<br><br>
 
+**What is the difference between `.yml` and `.yaml`?**
+
+- There is zero functional difference. Both extensions represent the exact same file format and are treated identically by the YAML parser and the Spring Boot framework.
+- The `.yml` extension became popular because of legacy Windows systems (which preferred 3-letter extensions like `.htm` or `.jpg`). The official YAML website and modern Linux/Unix standards generally prefer `.yaml`.
+- Spring Boot’s `PropertySourcesLoader` will recognize both and treat them with the same priority. In a top-tier project, the key is consistency—pick one extension and stick with it across all microservices.
+
+
+<br><br>
+
+**If I will configure same values in both properties then which value will be load in spring boot or Who will load first properties or yml file?**
+
+- If both `application.properties` and `application.yml` exist in the same location, `application.properties` takes precedence.
+- This is determined by the order in which `PropertySourceLoaders` are processed. Spring Boot iterates through these loaders; the properties loader runs after the YAML loader. Since later sources added to the `MutablePropertySources` list override earlier ones for the same key, the properties file wins.
+- **`PropertySourceLoader`:** This is the strategy interface used to load properties. Below are the implementation classes.
+  - **`PropertiesPropertySourceLoader`:** Handles `.properties` and `.xml` files.
+  - **`YamlPropertySourceLoader`:** Handles `.yml` and `.yaml` files.
+- **Code Snippet:**
+  ```java
+    // How Spring internally loads these (Conceptual)
+    public class PropertyLoader {
+        // Spring Boot uses these implementations via SPI
+        private List<PropertySourceLoader> loaders = List.of(
+            new YamlPropertySourceLoader(), 
+            new PropertiesPropertySourceLoader()
+        );
+
+        public void load() {
+            // As it iterates, later values for the same key override previous ones
+            for (PropertySourceLoader loader : loaders) {
+                // Logic to add to Environment
+            }
+        }
+    }
+  ```
+
+
+<br><br>
+
+**How to load External Properties in Spring Boot (`spring.config.import`)**
+
+- **`spring.config.import`:** Introduced in Spring Boot 2.4+ and refined in Boot 3, this property allows a configuration file to "reach out" and pull in other sources. It replaces the old bootstrap method.
+- `ConfigDataLocationResolvers` and `ConfigDataLoader`. These classes decide how to interpret the string (is it a file? a URL? a vault path?) and how to load the bits.
+- **Comprehensive Code Snippet:**
+  ```yaml
+    # application.yml - Primary config inside the JAR
+    spring:
+    config:
+        import: 
+        - "file:/etc/config/bank-api-secrets.properties" # External Linux path (High Priority)
+        - "optional:file:./config/override.yml"         # Optional local file
+        - "configserver:http://config-svc:8888"        # Integration with Spring Cloud Config
+  ```
+  ```java
+    # Usage in a Service
+    @Service
+    public class SecretService {
+        @Value("${bank.api.key}")
+        private String apiKey; // This would be loaded from the external file above
+    }
+  ```
+
+
+<br><br>
+
+**How to map or bind config properties to a Java Object?**
+
+- Use `@ConfigurationProperties`. It provides type safety, validation, and hierarchical grouping.
+- `ConfigurationPropertiesBindingPostProcessor` class. This is the specialized bean post-processor that intercepts your bean, reads the metadata, and performs the "Relaxed Binding."
+- **Code Snippet:**
+  ```java
+    // 1. Define the POJO with Validation
+    @Configuration
+    @ConfigurationProperties(prefix = "bank.auth")
+    @Validated // Required to trigger JSR-303 validation
+    public class AuthProperties {
+
+        @NotBlank(message = "JWT Secret cannot be empty")
+        private String jwtSecret;
+
+        @Min(value = 1800, message = "Session must be at least 30 mins")
+        private int sessionTimeout;
+
+        // Getters and Setters are MANDATORY for standard binding
+        public String getJwtSecret() { return jwtSecret; }
+        public void setJwtSecret(String jwtSecret) { this.jwtSecret = jwtSecret; }
+        public int getSessionTimeout() { return sessionTimeout; }
+        public void setSessionTimeout(int sessionTimeout) { this.sessionTimeout = sessionTimeout; }
+    }
+
+    // 2. Using the properties in a Security Filter
+    @Component
+    public class JwtFilter {
+        private final AuthProperties authProperties;
+
+        // Constructor Injection is best practice
+        public JwtFilter(AuthProperties authProperties) {
+            this.authProperties = authProperties;
+        }
+
+        public void validate() {
+            System.out.println("Using Secret: " + authProperties.getJwtSecret());
+        }
+    }
+  ```
 
 
