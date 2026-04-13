@@ -240,3 +240,85 @@ AWS supports three main categories of MFA devices as shown in the table:
    ![My Image](screenshots/iam_image_9.png)
 3. **Configuring MFA**
    ![My Image](screenshots/iam_image_10.png)
+
+
+<br><br>
+
+### AWS Access Keys, CLI and SDK
+
+**How Users Access AWS**
+
+There are three primary ways to manage and interact with AWS resources.
+
+| Access Method | Best For... | Protection Mechanism |
+|:-|:-|:-|
+| **Management Console** | Manual tasks, visual monitoring, learning services. | Password + MFA |
+| **CLI (Command Line)** | Quick scripts, one-off commands, automation via shell. | Access Keys |
+| **SDK (Code)** | Application logic, building microservices (Java/Spring). | Access Keys |
+
+
+<br>
+
+**What are Access Keys?**
+
+Access keys are long-term credentials for an IAM user.
+
+- **Access Key ID:** Think of this as your Username.
+- **Secret Access Key:** Think of this as your Password.
+- **Critical Rule:** Never share these or commit them to GitHub. They give full programmatic access to your account based on the user's permissions.
+
+
+<br>
+
+**The AWS CLI (Command Line Interface)**
+
+The CLI allows you to interact with AWS services using commands in your terminal. It is open-source and provides direct access to public APIs.
+
+- **Example Use Case:** Uploading a file to S3 without opening a browser.
+- **Command Syntax:** `aws s3 cp myfile.txt s3://my-bucket/`
+
+
+<br>
+
+**The AWS SDK (Software Development Kit)**
+
+The SDK is a collection of libraries that allow you to manage AWS services programmatically within your application.
+
+- **Language Support:** Java (our core focus), Python, Go, Node.js, etc.
+- **Architecture:** The SDK is embedded directly into your application code.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
