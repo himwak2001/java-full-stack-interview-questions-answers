@@ -610,3 +610,230 @@ It occurs when Bean A depends on Bean B, and Bean B depends on Bean A. This crea
   ```
 
 
+<br><br>
+
+**How will you resolve bean dependency ambiguity?**
+
+- This occurs when you have one interface but multiple implementations (e.g., `PaymentService` implemented by `Paypal` and `Stripe`). When you try to `@Autowire` the interface, Spring gets confused about which bean to inject and throws a `NoUniqueBeanDefinitionException`.
+- You use the `@Qualifier` annotation alongside `@Autowired` or in the constructor to explicitly name the bean you want.
+- The `DefaultListableBeanFactory` is the class responsible for resolving these dependencies. It uses the qualifier name as a secondary filter when type-matching returns multiple results.
+  ```java
+    public interface Payment { void process(); }
+
+    @Component("paypal")
+    public class PaypalPayment implements Payment { public void process() { ... } }
+
+    @Component("stripe")
+    public class StripePayment implements Payment { public void process() { ... } }
+
+    @Service
+    public class Checkout {
+        private final Payment payment;
+
+        // Resolving ambiguity using @Qualifier
+        public Checkout(@Qualifier("stripe") Payment payment) {
+            this.payment = payment;
+        }
+    }
+  ```
+
+<br><br>
+
+**Can we avoid dependency ambiguity without using `@Qualifier`?**
+
+Yes, you can. Spring 6 and Boot 3 provide several built-in mechanisms to resolve which implementation should be injected when multiple candidates exist.
+
+- **Approach A: The `@Primary` Annotation**
+  - This is the most common "product-grade" solution. You mark one implementation as the default. If Spring finds multiple beans of the same type, it will always pick the one marked `@Primary` unless a specific name is requested.
+- **Approach B: The `@Resource` Annotation**
+  - Unlike `@Autowired` (which searches by Type first), the `@Resource` annotation searches by Name first. If the name of your field or setter matches the Bean ID, Spring injects it directly, bypassing the ambiguity check entirely.
+- **Approach C: Variable Naming (Bean Name Autowiring)**
+  - If you use `@Autowired`, Spring's `DefaultListableBeanFactory` uses the variable name as a fallback tie-breaker. if the interface is `Payment` and you name your variable `paypalPayment`, Spring looks for a bean with that exact ID.
+- **Code Snippet:**
+  ```java
+    public interface Payment { void process(); }
+
+    @Component("paypal")
+    public class PaypalPayment implements Payment { 
+        public void process() { System.out.println("Paid via Paypal"); } 
+    }
+
+    @Component("stripe")
+    @Primary // Approach A: The default choice if no name is specified
+    public class StripePayment implements Payment { 
+        public void process() { System.out.println("Paid via Stripe"); } 
+    }
+  ```
+  ```java
+    @Service
+    public class CheckoutService {
+
+        // Approach B: Search by NAME first (Standard Java/JSR-250)
+        // Spring looks for a bean named "paypal" in the container
+        @Resource(name = "paypal")
+        private Payment paymentSource;
+
+        // Approach C: Fallback Naming
+        // Spring sees multiple Payments, but because variable is 'stripe', it picks StripePayment
+        @Autowired
+        private Payment stripe;
+
+        public void completeOrder() {
+            paymentSource.process();
+            stripe.process();
+        }
+    }
+  ```
+- **Internal Responsible Classes & Interfaces**
+  - **`CommonAnnotationBeanPostProcessor`:** This is the class specifically responsible for processing the `@Resource` annotation. It belongs to the `org.springframework.context.annotation` package and handles JSR-250 lifecycle annotations.
+  - **`AutowiredAnnotationBeanPostProcessor`:** The class that handles `@Autowired` and `@Value`. It uses the `DefaultListableBeanFactory` to resolve beans by type first, then by name.
+  - **`PrimaryObjectProvider`:** Internally used by Spring to check for the presence of the `@Primary` metadata during the autowiring process.
+
+
+
+<br><br>
+
+**What is bean scope & Can you explain different type of bean scope?**
+
+- Bean Scope defines the lifecycle and visibility of a bean within the Spring Container. It determines how many instances of a bean are created and how they are shared.
+- The `Scope` interface and its implementations (like SimpleThreadScope) manage this logic.
+- **Pointwise Types:**
+  - **Singleton (Default):** Only one instance is created per IoC container. It is stateless and thread-safe.
+  - **Prototype:** A new instance is created every time it is requested from the container. Used for stateful beans.
+  - **Request (Web only):** One instance per HTTP request.
+  - **Session (Web only):** One instance per HTTP session.
+  - **Application (Web only):** One instance per ServletContext.
+  - **WebSocket (Web only):** One instance per WebSocket lifecycle.
+  ```java
+    @Component
+    @Scope("prototype") // New object every time @Autowired is called
+    public class UserSession {
+        // Stateful data
+    }
+  ```
+
+<br><br>
+
+**How to define custom bean scope?**
+
+Creating a custom scope involves four distinct architectural steps. This demonstrates your knowledge of the `org.springframework.beans.factory.config package`.
+
+- **Step 1: Implement the `Scope` Interface:** You must create a class that implements the `Scope` interface. This requires overriding methods like `get(String name, ObjectFactory<?> objectFactory)` to define the logic for retrieving or creating the bean, and `remove(String name)` for cleanup.
+- **Step 2: Register the Custom Scope:** You must tell the Spring Container about your new scope. This is done by calling `configurableBeanFactory.registerScope("scopeName", new MyCustomScope())`.
+- **Step 3: Access via BeanFactoryPostProcessor:** To automate registration during startup, we typically implement `CustomScopeConfigurer`.
+- **Step 4: Usage:** Apply it to your beans using the `@Scope("yourScopeName")` annotation.
+- **Code Snippet: Custom Thread Scope Example**
+  ```java
+    // 1. Implementation
+    public class MyThreadScope implements Scope {
+        private final ThreadLocal<Map<String, Object>> threadScope = 
+            ThreadLocal.withInitial(HashMap::new);
+
+        @Override
+        public Object get(String name, ObjectFactory<?> objectFactory) {
+            Map<String, Object> scope = threadScope.get();
+            return scope.computeIfAbsent(name, k -> objectFactory.getObject());
+        }
+        // Implement remove(), getConversationId(), etc.
+    }
+
+    // 2. Registration via Configuration
+    @Configuration
+    public class ScopeConfig {
+        @Bean
+        public static CustomScopeConfigurer customScopeConfigurer() {
+            CustomScopeConfigurer configurer = new CustomScopeConfigurer();
+            configurer.addScope("myThread", new MyThreadScope());
+            return configurer;
+        }
+    }
+  ```
+
+<br><br>
+
+**Can you provide a few real-time use cases for when to choose Singleton Scope and Prototype Scope?**
+
+- **Singleton Scope (One Instance per Container)**
+
+  This is the default. It is used for stateless objects that can be shared across multiple threads without corruption.
+
+  - **Database Configuration:** Objects like `DataSource` or `JdbcTemplate` are expensive to create. Sharing one instance ensures efficient connection pooling.
+  - **Service & Repository Layers:** Since these usually contain only logic and no "per-user" state, a singleton instance handles all incoming requests efficiently.
+  - **Application Configuration:** Shared constants or global settings loaded from properties.
+- **Prototype Scope (New Instance per Request)**
+  
+  Used for stateful objects or when thread isolation is required.
+
+  - **User Sessions/Shopping Carts:** If a bean stores data specific to a user's current interaction, a new instance prevents data leaking between users.
+  - **Thread Safety:** If a legacy library or a class is not thread-safe (contains mutable instance variables), providing a fresh instance to every caller avoids race conditions.
+  - **Heavy Initialization with State:** A bean that performs a complex calculation and stores the intermediate result. Using a singleton here would cause the next thread to see the previous thread's partial data.
+
+
+<br><br>
+
+**Can we inject a prototype bean in a singleton bean? If yes, what will happen if we inject prototype bean in a singleton bean?**
+
+- Yes, you can inject it, but it leads to a common problem called Scope Impediment.
+- **The Problem:** Since the Singleton bean is initialized only once, the Prototype bean is also injected only once at startup. Consequently, every time you use the Singleton bean, you are stuck with the same instance of the Prototype bean, defeating its purpose.
+- **The Solution (Lookup Injection):** To get a fresh Prototype instance every time, you must use Method Injection via the `@Lookup` annotation or implement `ApplicationContextAware` to fetch the bean manually.
+- **Internal Responsible Class:** `CglibSubclassingInstantiationStrategy`. When you use `@Lookup`, Spring uses CGLIB to bytecode-generate a subclass of your bean and overrides the method to fetch a new instance from the container.
+- Code Snippet: The @Lookup Solution
+  ```java
+    @Component
+    @Scope("prototype")
+    public class PrototypeBean { /* stateful logic */ }
+
+    @Component
+    public abstract class SingletonBean {
+
+        public void process() {
+            // This method will be overridden by Spring to return a NEW instance
+            PrototypeBean instance = getPrototypeBean();
+            System.out.println("Using: " + instance);
+        }
+
+        @Lookup
+        public abstract PrototypeBean getPrototypeBean();
+    }
+  ```
+
+<br><br>
+
+**Difference between Spring Singleton and Plain Singleton?**
+
+- A Plain Java Singleton (GoF pattern) ensures one instance per ClassLoader. A Spring Singleton ensures one instance per Spring IoC Container (ApplicationContext).
+- Plain singletons use private constructors and static methods. Spring singletons are managed by the container; you can still create multiple instances manually using the new keyword, though it's discouraged.
+- Spring singletons are easier to unit test because they allow for constructor injection of mocks. Plain singletons are global states and notoriously difficult to mock.
+
+
+<br><br>
+
+**What is the purpose of the BeanPostProcessor interface in Spring, and how can you use it to customize bean initialization and destruction?**
+
+- The `BeanPostProcessor` (BPP) is an interface that allows you to "plug in" custom logic into the Spring Bean Lifecycle. It lets you modify or wrap beans (like creating Proxies) before and after they are initialized.
+- **Lifecycle Hooks:**
+  - **`postProcessBeforeInitialization`:** Called after dependencies are injected but before `@PostConstruct` or `afterPropertiesSet`.
+  - **`postProcessAfterInitialization`:** Called after the init methods. This is where Spring usually creates AOP Proxies.
+- Real-world Use Case: Custom logging, validation of custom annotations, or sensitive data encryption before the bean is ready for use.
+- **Code Snippet: Custom BeanPostProcessor**
+  ```java
+    @Component
+    public class CustomBPP implements BeanPostProcessor {
+
+        @Override
+        public Object postProcessBeforeInitialization(Object bean, String beanName) {
+            if (bean instanceof MyService) {
+                System.out.println("Intercepting before init: " + beanName);
+            }
+            return bean; // Must return the bean (or a wrapper)
+        }
+
+        @Override
+        public Object postProcessAfterInitialization(Object bean, String beanName) {
+            return bean;
+        }
+    }
+  ```
+
+
+
