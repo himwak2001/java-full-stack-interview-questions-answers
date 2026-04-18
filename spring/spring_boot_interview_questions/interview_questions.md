@@ -835,5 +835,444 @@ Creating a custom scope involves four distinct architectural steps. This demonst
     }
   ```
 
+<br><br>
+
+**What all HTTP methods have you used in your project?**
+
+- **GET (Retrieve):** Used to fetch a resource. It is Idempotent (multiple identical requests have the same effect as one) and Safe (does not change the server state).
+- **POST (Create):** Used to create a new resource. It is Non-Idempotent. Every time you hit a POST endpoint, a new record is typically created (e.g., `POST /users`).
+- **PUT (Update/Replace):** Used for a Full Update. It replaces the entire resource with the new payload. It is Idempotent—sending the same full update 10 times results in the same final state.
+- **PATCH (Partial Update):** Used for Partial Updates (e.g., just changing a user's email). Unlike PUT, you only send the fields you want to change.
+- **DELETE (Remove):** Used to remove a resource. It is Idempotent because once a resource is deleted, subsequent deletes don't change the state further (they simply return 404 or 204).
+
+
+<br><br>
+
+**How can you specify the HTTP method type for your REST endpoint?**
+
+There are two primary ways to specify the method in Spring Boot 3. Understanding the relationship between them is key to proving seniority.
+
+- **Approach A: Using `@RequestMapping` (General Purpose)**
+  - This is the base annotation. You specify the method using the `method` attribute from the `RequestMethod` enum.
+    ```java
+    // Traditional way (often used at Class level for base paths)
+    @RequestMapping(value = "/users", method = RequestMethod.POST)
+    public ResponseEntity<String> createUser(@RequestBody User user) {
+        return ResponseEntity.ok("User Created");
+    }
+    ```
+- **Approach B: Using Composed Annotations (Best Practice)**
+  - Spring provides "shortcut" annotations that are meta-annotated with `@RequestMapping`. These are preferred in modern projects for better readability.
+    ```java
+    @GetMapping("/users/{id}")      // Shortcut for @RequestMapping(method = RequestMethod.GET)
+    @PostMapping("/users")          // Shortcut for @RequestMapping(method = RequestMethod.POST)
+    @PutMapping("/users/{id}")       // Shortcut for @RequestMapping(method = RequestMethod.PUT)
+    @PatchMapping("/users/{id}")     // Shortcut for @RequestMapping(method = RequestMethod.PATCH)
+    @DeleteMapping("/users/{id}")    // Shortcut for @RequestMapping(method = RequestMethod.DELETE)
+    ```
+- **Internal Responsible Classes & Mechanics**
+  - **`RequestMappingHandlerMapping`:** This is the most important class. It scans all your `@Controller` beans during startup, finds the `@RequestMapping` (or composed) annotations, and creates a "map" of URLs to method handlers.
+  - **`RequestMappingInfo`:** An internal object that stores the conditions for a match (URL, HTTP Method, Headers, Params).
+  - **`DispatcherServlet`:** The front controller that receives the incoming HTTP request and uses the `HandlerMapping` to decide which Java method to execute.
+
+
+<br><br>
+
+**What is the difference between `@PathVariable` & `@RequestParam`?**
+
+- **`@PathVariable`:** Used to extract data directly from the URI path. This is the standard for RESTful APIs where the variable identifies a specific resource.
+- **`@RequestParam`:** Used to extract data from Query Parameters (after the `?` in the URL). This is used for filtering, sorting, or optional parameters.
+- **Internal Responsible Class:** `PathVariableMethodArgumentResolver` and `RequestParamMethodArgumentResolver`. These specialized resolvers extract the strings from the request and convert them to your Java types.
+- **Code Snippet:**
+  ```java
+  // URL: /users/101?status=active
+  @GetMapping("/users/{id}")
+  public ResponseEntity<User> getUser(
+      @PathVariable("id") Long userId,          // id = 101
+      @RequestParam(value = "status") String st // status = "active"
+  ) {
+      return ResponseEntity.ok(service.find(userId, st));
+  }
+  ```
+
+<br><br>
+
+**Why did you use `@RestController` why not `@Controller`?**
+
+- **`@Controller`:** The traditional annotation used for Web MVC. It typically returns a View (like an HTML page via Thymeleaf). If you want to return data directly, you must add `@ResponseBody` to every method.
+- **`@RestController`:** A specialized "composed" annotation. It is a combination of `@Controller` + `@ResponseBody`.
+- **The Key Difference:** When using `@RestController`, Spring automatically assumes every method returns a data object (JSON/XML) that should be written directly into the HTTP Response Body, bypassing the View Resolver entirely.
+- **Internal Responsible Class:** `RequestResponseBodyMethodProcessor`. This class handles the return value of `@RestController` methods by passing it to the appropriate Message Converter.
+
+
+<br><br>
+
+**How can we deserialize a JSON request payload into an object?**
+
+- Use `@RequestBody`.
+- Spring doesn't do this manually. It uses HTTP Message Converters. For JSON, the default is the Jackson library.
+- **The Process:**
+  - The request arrives with `Content-Type: application/json`.
+  - Spring's DispatcherServlet identifies the `@RequestBody` annotation.
+  - It calls the `MappingJackson2HttpMessageConverter`.
+  - Jackson reads the JSON input stream and maps the keys to your Java object's fields (via reflection/setters).
+- **Code Snippet:**
+  ```java
+  @PostMapping(value = "/save", consumes = MediaType.APPLICATION_JSON_VALUE)
+  public ResponseEntity<User> createUser(@RequestBody User user) { 
+      // JSON is already converted to a User object here
+      return new ResponseEntity<>(service.save(user), HttpStatus.CREATED);
+  }
+  ```
+- **Internal Message Conversion Lifecycle**
+  ```mermaid
+  graph TD
+    A["Incoming HTTP Request"] --> B["DispatcherServlet"]
+    B --> C{"Argument Resolvers"}
+    
+    C -->|"@PathVariable"| D["Extract from URI"]
+    C -->|"@RequestParam"| E["Extract from Query String"]
+    C -->|"@RequestBody"| F["Call HttpMessageConverter"]
+    
+    F --> G["Jackson Library: JSON to POJO"]
+    G --> H["Invoke Controller Method"]
+    H --> I["Return Object"]
+    
+    I --> J{"@RestController?"}
+    J -->|"Yes"| K["Bypass ViewResolver"]
+    K --> L["Jackson: POJO to JSON Response"]
+    
+    style F fill:#f96,stroke:#333
+    style J fill:#4285F4,color:#fff
+    style L fill:#34A853,color:#fff
+
+  ```
+
+<br><br>
+
+
+**Can we perform update in `POST`? If yes, why do we need PUT?**
+
+- Yes, you can perform updates in a `POST` method. However, `POST` is designed for non-idempotent operations. If a client retries a `POST` request due to a timeout, your server might perform the update twice (or create a duplicate if the logic isn't perfect).
+- `PUT` is idempotent. It represents a "Replace" operation. Sending the same `PUT` request multiple times will always result in the same state on the server.
+- **The Semantic standard:**
+  - `POST` → “Server, you decide where/how this gets created or handled.”
+  - `PUT` → “I know exactly where this resource lives—replace it there.”
+  - Use `POST` when the server controls the resource ID (e.g., creating a new transaction). Use `PUT` when the client provides the specific URI of the resource to be updated/replaced.
+- `RequestMappingHandlerMapping` uses the `RequestMethod` enum to route these distinct behaviors.
+
+<br><br>
+
+**Can we pass a Request Body in a `GET` Method?**
+
+- Technically possible, but architecturally forbidden.
+- Most HTTP client libraries (like older versions of OkHttp) and many Web Servers/Proxies/Firewalls will either ignore the body or explicitly reject the request.
+- Never use a body in GET. It breaks Cacheability. If you need to send complex filter criteria that don't fit in query params, use a POST request with a specific "search" action.
+
+
+<br><br>
+
+**How can we perform content negotiation (`XML`/`JSON`)?**
+
+- Content Negotiation is the process where the Client and Server agree on the data format (Media Type).
+- **The Mechanism:** It relies on HTTP Headers:
+  - **`Accept`:** Client tells server "I want JSON" (`Accept: application/json`).
+  - **Content-Type:** Client tells server "I am sending XML" (`Content-Type: application/xml`).
+- **Internal Responsible Class:** `ContentNegotiationManager` and `HttpMessageConverter` implementations.
+- Spring looks at the `Accept` header and iterates through registered `HttpMessageConverters` (like `MappingJackson2HttpMessageConverter` for JSON or `Jaxb2RootElementHttpMessageConverter` for XML) to find one that can produce that format.
+  ```java
+  @GetMapping(value = "/user/{id}", 
+            produces = {MediaType.APPLICATION_JSON_VALUE, MediaType.APPLICATION_XML_VALUE})
+  public User getUser(@PathVariable String id) {
+      return service.findById(id); // Spring picks JSON or XML based on 'Accept' header
+  }
+  ```
+
+
+
+<br><br>
+
+**What all status codes you have observed in your application?**
+
+In banking and product firms, status codes are the "API Contract." You must use them accurately:
+
+- **2xx (Success):**
+  - **`200 OK`:** General success.
+  - **`201 Created`:** Successfully created a resource (POST).
+  - **`204 No Content`:** Success, but nothing to return (common for DELETE).
+- **4xx (Client Error):**
+  - **`400 Bad Request`:** Validation failed.
+  - **`401 Unauthorized`:** No authentication (Missing token).
+  - **`403 Forbidden`:** Authenticated but no permission (RBAC failure).
+  - **`404 Not Found`:** Resource doesn't exist.
+  - **`405 Method Not Allowed`:** Using GET on a POST-only endpoint.
+  - **`415 Unsupported Media Type`:** Client sent XML but server only accepts JSON.
+- **5xx (Server Error):**
+  - **`500 Internal Server Error`:** Unhandled exception (`NullPointerException`).
+  - **`503 Service Unavailable`:** Down for maintenance or overloaded.
+- **Internal Logic Flow of Content Negotiation**
+  ```mermaid
+  graph TD
+    A[Client Request with 'Accept: application/xml'] --> B[DispatcherServlet]
+    B --> C[Find Handler Method]
+    C --> D[Method returns User Object]
+    D --> E[ContentNegotiationManager]
+    E --> F{Is XML Converter available?}
+    F -- No --> G[406 Not Acceptable]
+    F -- Yes --> H[Jaxb2RootElementHttpMessageConverter]
+    H --> I[Convert Object to XML]
+    I --> J[Send Response]
+    
+    style E fill:#f96,stroke:#333
+    style G fill:#f44336,color:#fff
+    style J fill:#34A853,color:#fff
+  ```
+
+<br><br>
+
+**How to Customize the Status Code for your Endpoint?**
+
+There are three professional ways to handle this:
+
+- **Approach A: `@ResponseStatus` Annotation:** Best for simple methods that always return the same status upon success.
+  ```java
+  @PostMapping
+  @ResponseStatus(HttpStatus.CREATED) // Returns 201 instead of default 200
+  public User save(@RequestBody User user) { return repo.save(user); }
+  ```
+- **Approach B: `ResponseEntity` (The Dynamic Choice):** Preferred in banking for conditional returns (e.g., return 200 if found, 404 if not).
+  ```java
+  @GetMapping("/{id}")
+  public ResponseEntity<User> find(@PathVariable Long id) {
+      return repo.findById(id)
+                .map(user -> new ResponseEntity<>(user, HttpStatus.OK))
+                .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
+  }
+  ```
+- **Approach C: Global Exception Handling:** Using `@RestControllerAdvice` and `@ExceptionHandler` to map specific Java exceptions to status codes globally.
+
+<br><br>
+
+**How can you enable Cross-Origin Resource Sharing (CORS)?**
+
+- CORS is a security feature that prevents a web page from making requests to a different domain than the one that served it. You must explicitly permit trusted origins (e.g., your React/Angular frontend).
+- **Approach A (Local):** Use the `@CrossOrigin` annotation on specific Controllers or methods.
+- **Approach B (Global - Preferred):** Implement the `WebMvcConfigurer` interface to define global rules for the entire application.
+- **Internal Responsible Class:** `CorsFilter` and `DefaultCorsProcessor`. These handle the "Pre-flight" OPTIONS request sent by the browser to verify permissions.
+  ```java
+  @Configuration
+  public class CorsConfig implements WebMvcConfigurer {
+      @Override
+      public void addCorsMappings(CorsRegistry registry) {
+          registry.addMapping("/api/**")
+                  .allowedOrigins("https://trusted-bank-ui.com")
+                  .allowedMethods("GET", "POST", "PUT", "DELETE")
+                  .allowCredentials(true);
+      }
+  }
+  ```
+
+
+<br><br>
+
+**How can you upload a file in Spring?**
+
+- File uploading uses the `multipart/form-data content type`. Spring translates the binary parts of the request into a `MultipartFile` object.
+- `StandardServletMultipartResolver`. This class interfaces with the underlying Servlet container (Tomcat) to parse the multi-part stream.
+- In Spring Boot 3, you must often configure `spring.servlet.multipart.max-file-size` to prevent `MaxUploadSizeExceededException`.
+```java
+@RestController
+@RequestMapping("/api/v1/files")
+public class FileUploadController {
+
+    @PostMapping(value = "/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<String> uploadDocument(
+            @RequestParam("doc") MultipartFile file,
+            @RequestParam("userId") String userId) throws IOException {
+
+        if (file.isEmpty()) {
+            return ResponseEntity.badRequest().body("File is empty");
+        }
+
+        // Professional way: Use NIO for file operations
+        String fileName = userId + "_" + file.getOriginalFilename();
+        Path targetLocation = Paths.get("storage/uploads").resolve(fileName);
+        
+        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+
+        return ResponseEntity.status(HttpStatus.CREATED).body("Uploaded: " + fileName);
+    }
+}
+```
+
+
+<br><br>
+
+**How do you maintain versioning for your REST API?**
+
+Versioning ensures that when you update your business logic, you don't break existing mobile or third-party integrations.
+
+- **Approach:** URI Versioning is the industry standard for clarity.
+- **Internal Mechanic:** Spring's `RequestMappingHandlerMapping` creates unique entries for each versioned path.
+  ```java
+  @RestController
+  @RequestMapping("/api")
+  public class AccountController {
+
+      // Version 1: Legacy support
+      @GetMapping("/v1/accounts/{id}")
+      public AccountV1 getAccountV1(@PathVariable String id) {
+          return new AccountV1(id, "SAVINGS", 1000.0);
+      }
+
+      // Version 2: New requirement - added Currency and Account Holder Name
+      @GetMapping("/v2/accounts/{id}")
+      public AccountV2 getAccountV2(@PathVariable String id) {
+          return new AccountV2(id, "SAVINGS", 1000.0, "USD", "John Doe");
+      }
+  }
+  ```
+
+<br><br>
+
+**How can you hide certain REST endpoints?**
+
+In banking, you often have "Internal-only" endpoints (like health checks or manual data syncs) that should not be visible to external developers via Swagger.
+
+- **Approach:** Use the `@Hidden` annotation from Swagger (OpenAPI 3).
+- **Internal Mechanic:** The `OpenApiResource` scanner skips any method or class marked with this annotation during the documentation generation phase.
+```java
+@RestController
+@RequestMapping("/api/v1/system")
+public class InternalAdminController {
+
+    @GetMapping("/health-check")
+    public String checkHealth() {
+        return "System is UP";
+    }
+
+    // This will NOT appear in the Swagger UI /v3/api-docs
+    @Hidden
+    @PostMapping("/force-sync-ledger")
+    public void syncLedger() {
+        // Sensitive manual sync logic
+    }
+}
+```
+
+
+<br><br>
+
+**How will you consume a RESTful API? (The 3 Major Clients)**
+
+1. **RestTemplate (Synchronous / Blocking)**
+   - Best for simple, legacy, or low-concurrency applications. It belongs to the `org.springframework.web.client` package.
+   - It uses a synchronous, blocking model where each request ties up a single thread from the Servlet container's thread pool. In high-traffic banking apps, this can lead to Thread Starvation, where no threads are left to handle new incoming requests.
+   - To add common headers (like JWT tokens) or logging, you implement the `ClientHttpRequestInterceptor` interface and add it to the RestTemplate bean.
+    ```java
+    @Service
+    public class LegacyClient {
+        private final RestTemplate restTemplate = new RestTemplate();
+
+        public UserResponse fetchUser(Long id) {
+            String url = "https://api.external.com/users/" + id;
+            // Blocking call: Thread waits here for response
+            return restTemplate.getForObject(url, UserResponse.class);
+        }
+    }
+    ```
+2. **OpenFeign (Declarative / Spring Cloud)**
+   - The "Product Firm" favorite. You define an interface, and Spring Cloud generates the implementation using `ReflectiveFeign`.
+   - It hides the complexity of HTTP calls entirely. By using the `@FeignClient` annotation, you write code that looks like a local method call, but internally, Feign handles URL construction, parameter binding, and response parsing.
+   - It integrates natively with Spring Cloud LoadBalancer. In a microservices environment, you don't need to hardcode URLs; you use the service name (e.g., inventory-service), and Feign finds the instance via a Service Registry like Eureka or Consul.
+   - It has seamless integration with Resilience4j (and formerly Hystrix), allowing you to define "Fallback" classes that execute if the external service is down, ensuring your application remains stable.
+      ```java
+      // Add @EnableFeignClients to your main class
+      @FeignClient(name = "user-service", url = "https://api.external.com")
+      public interface UserFeignClient {
+
+          @GetMapping("/users/{id}")
+          UserResponse getUserById(@PathVariable("id") Long id);
+      }
+      ```
+3. **WebClient (Reactive / Non-Blocking)**
+   - The Spring 6 Standard. It uses an event-loop mechanism provided by Project Reactor.
+   - It uses an asynchronous event-loop (provided by Netty) instead of a thread-per-request. One thread can manage thousands of concurrent requests, making it the superior choice for high-throughput product architectures.
+   - Because it is built on Project Reactor, it can handle Server-Sent Events (SSE) and streaming data natively. You can consume a stream of data chunk-by-chunk using `Flux` without loading the entire payload into memory.
+   - Since it doesn't block threads, the memory footprint remains low even under heavy load. This is critical for Cost Optimization in cloud environments (AWS/Azure), where you want to run microservices on smaller instances.
+      ```java
+      @Service
+      public class ModernClient {
+          private final WebClient webClient;
+
+          public ModernClient(WebClient.Builder builder) {
+              this.webClient = builder.baseUrl("https://api.external.com").build();
+          }
+
+          public Mono<UserResponse> fetchUserAsync(Long id) {
+              return this.webClient.get()
+                      .uri("/users/{id}", id)
+                      .retrieve()
+                      .onStatus(HttpStatusCode::is4xxClientError, resp -> Mono.error(new RuntimeException("User not found")))
+                      .bodyToMono(UserResponse.class); // Returns a 'Promise' (Mono)
+          }
+      }
+      ```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
