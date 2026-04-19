@@ -287,7 +287,16 @@ The SDK is a collection of libraries that allow you to manage AWS services progr
 - **Language Support:** Java (our core focus), Python, Go, Node.js, etc.
 - **Architecture:** The SDK is embedded directly into your application code.
 
+<br>
 
+**Hands-On: IAM AWS CLI**
+
+1. **Downloading and installing AWS CLI:**
+   ![My Image](screenshots/iam_image_11.png)
+2. **Setting up Access Key:**
+   ![My Image](screenshots/iam_image_12.png)
+3. **Configuring and testing in local**
+   ![My Image](screenshots/iam_image_13.png)
 
 
 
