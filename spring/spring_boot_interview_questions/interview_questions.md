@@ -1219,25 +1219,184 @@ public class InternalAdminController {
       }
       ```
 
+<br><br>
+
+**How will you handle exceptions in your project?**
+
+- In modern Spring 6/Boot 3, we use a Centralized Global Exception Handler. This is achieved using the `@RestControllerAdvice` annotation. It acts as an interceptor for exceptions thrown by any `@RequestMapping` method across all controllers.
+- Spring 6 baseline supports RFC 7807 (Problem Details for HTTP APIs). Instead of creating custom "ErrorDTO" classes manually, we use the built-in `ProblemDetail` class to provide a standardized, machine-readable error response.
+- `ExceptionHandlerExceptionResolver`. This is the core Spring bean that scans for `@ExceptionHandler` methods and invokes them when an exception escapes the controller.
+  ```java
+  @RestControllerAdvice
+  public class GlobalExceptionHandler {
+
+      // Handling a specific business exception
+      @ExceptionHandler(ProductNotFoundException.class)
+      public ProblemDetail handleProductNotFound(ProductNotFoundException ex) {
+          ProblemDetail pd = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, ex.getMessage());
+          pd.setTitle("Product Not Found");
+          pd.setProperty("timestamp", Instant.now());
+          return pd;
+      }
+  }
+  ```
 
 
+<br><br>
+
+**How can you avoid defining handlers for multiple exceptions (Best Practices)?**
+
+- Avoid creating a separate handler for every single exception. Instead, create a `BaseBusinessException` (extending `RuntimeException`). All custom exceptions (e.g., `OrderNotFoundException`, `InventoryException`) should extend this base class. You then write a single handler for the base class.
+- Always implement a generic handler for `Exception.class`. This prevents the server from leaking internal stack traces (which is a security vulnerability) and returns a clean 500 error instead.
+- Have your advice class extend `ResponseEntityExceptionHandler`. This provides default handling for standard Spring MVC exceptions (like `HttpRequestMethodNotSupportedException`) so you don't have to rewrite them.
+  ```java
+  // 1. Your Custom Hierarchy
+  abstract class BaseBusinessException extends RuntimeException {
+      public BaseBusinessException(String message) { super(message); }
+  }
+
+  class ProductNotFoundException extends BaseBusinessException {
+      public ProductNotFoundException(String id) { super("Product not found: " + id); }
+  }
+
+  class InsufficientStockException extends BaseBusinessException {
+      public InsufficientStockException(String msg) { super(msg); }
+  }
+
+  // 2. Global Exception Handler
+  @RestControllerAdvice
+  @Slf4j
+  public class GlobalExceptionHandler {
+
+      /**
+      * HIERARCHY HANDLER:
+      * This single method catches ProductNotFound, InsufficientStock, 
+      * and ANY future exception that extends BaseBusinessException.
+      */
+      @ExceptionHandler(BaseBusinessException.class)
+      public ProblemDetail handleBusinessErrors(BaseBusinessException ex) {
+          log.warn("Business logic violation: {}", ex.getMessage());
+          return ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, ex.getMessage());
+      }
+
+      /**
+      * GENERIC HANDLER (The Safety Net):
+      * Catches NullPointer, SQL errors, etc. 
+      * Prevents Information Leakage of stack traces.
+      */
+      @ExceptionHandler(Exception.class)
+      public ProblemDetail handleGeneralErrors(Exception ex) {
+          // Log the full stack trace internally for developers
+          log.error("UNEXPECTED SYSTEM ERROR: ", ex);
+
+          // Return a masked, sanitized message to the client
+          ProblemDetail pd = ProblemDetail.forStatusAndDetail(
+              HttpStatus.INTERNAL_SERVER_ERROR, 
+              "An internal error occurred. Please contact support."
+          );
+          pd.setTitle("Server Error");
+          return pd;
+      }
+  }
+  ```
 
 
+<br><br>
+
+**How will you validate or sanitize your input payload?**
+
+- We use the Hibernate Validator (implementation of JSR 380). We annotate DTO fields with constraints like `@NotNull`, `@Min`, `@Max`, `@Email`, and `@Pattern` (Regex).
+- You must add the `@Valid` (standard) or `@Validated` (Spring-specific for groups) annotation to the `@RequestBody` in your Controller method.
+- `LocalValidatorFactoryBean`. This bean bootstraps the validation engine into the Spring context.
+- **Code Snippet:**
+  ```java
+  public class ProductRequest {
+    @NotBlank(message = "Product name cannot be empty")
+    @Size(min = 3, max = 50)
+    private String name;
+
+    @Min(value = 500, message = "Price must be at least 500")
+    private double price;
+  }
+
+  @PostMapping("/products")
+  public ResponseEntity<String> create(@Valid @RequestBody ProductRequest request) {
+      return ResponseEntity.ok("Valid Product");
+  }
+  ```
 
 
+<br><br>
+
+**How can you populate validation error messages to the end users?**
+
+- When `@Valid` fails, Spring throws a `MethodArgumentNotValidException`.
+- You catch this in your `@RestControllerAdvice`, iterate through the `BindingResult`, and extract the field name and the custom message you defined in the DTO.
+  ```java
+  @ExceptionHandler(MethodArgumentNotValidException.class)
+  public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+      Map<String, String> errors = new HashMap<>();
+      ex.getBindingResult().getFieldErrors().forEach(error -> 
+          errors.put(error.getField(), error.getDefaultMessage())
+      );
+      return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+  }
+  ```
 
 
+<br><br>
 
+**How can you define custom bean validation?**
 
+For complex logic (e.g., "Product type must be one of [Electronics, Education, Baby&Kids]"), standard annotations aren't enough.
 
+- **Create the Annotation:** Define an `@interface` with the `@Constraint` meta-annotation.
+- **Implement the Validator:** Create a class implementing `ConstraintValidator<Annotation, Type>`.
+- **Code Snippet:**
+  ```java
+  // 1. The Annotation
+  @Target({ElementType.FIELD})
+  @Retention(RetentionPolicy.RUNTIME)
+  @Constraint(validatedBy = ProductTypeValidator.class)
+  public @interface ValidateProductType {
+      String message() default "Invalid Product Type";
+      Class<?>[] groups() default {};
+      Class<? extends Payload>[] payload() default {};
+  }
 
+  // 2. The Implementation
+  public class ProductTypeValidator implements ConstraintValidator<ValidateProductType, String> {
+      @Override
+      public boolean isValid(String value, ConstraintValidatorContext context) {
+          List<String> validTypes = Arrays.asList("Electronics", "Education", "Baby&Kids");
+          return value != null && validTypes.contains(value);
+      }
+  }
+  ```
 
+<br><br>
 
+**Internal Validation & Exception Lifecycle**
 
+```mermaid
+graph TD
+    A[Client Request Body] --> B[DispatcherServlet]
+    B --> C{Validator Engine}
+    C -->|Invalid| D[Throw MethodArgumentNotValidException]
+    C -->|Valid| E[Invoke Controller Method]
+    
+    D --> F[GlobalExceptionHandler Advice]
+    F --> G[Extract FieldErrors & Messages]
+    G --> H[Return 400 Bad Request JSON]
+    
+    E -->|Business Logic Error| I[Throw CustomException]
+    I --> F
+    F --> J[Return Standard ProblemDetail RFC 7807]
 
-
-
-
+    style F fill:#4285F4,color:#fff
+    style D fill:#EA4335,color:#fff
+    style J fill:#34A853,color:#fff
+```
 
 
 
