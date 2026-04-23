@@ -1399,23 +1399,109 @@ graph TD
 ```
 
 
+<br><br>
+
+**You find a bug in production. How do you debug it from your local machine?**
+
+- First, activate the prod profile locally. Set `spring.profiles.active=prod` in your `application.properties` or pass it as a JVM arg: `-Dspring.profiles.active=prod`. This loads your `application-prod.properties`, giving you the same config context.
+- But you don't want to hit the real prod DB - instead, take a sanitized snapshot of the relevant prod data (rows that reproduce the bug) and import it into your local DB. Change only the datasource URL in your local config.
+- **Remote Debugging (JDWP):** if the bug is non-reproducible locally, attach IntelliJ to the running prod JVM. Start the prod server with debug flags, then create a Remote JVM Debug run config in IntelliJ pointing to that host:port.
+  ```powershell
+  # JVM startup flag on prod server (careful — never leave open in true prod)
+  -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+
+  # IntelliJ → Run → Edit Configurations → Remote JVM Debug
+  Host: prod-server-ip   Port: 5005
+  ```
+- **Actuator + Distributed Tracing:** expose /actuator/loggers endpoint and dynamically change log level to DEBUG for the problematic package without restarting the app.
+  ```powershell
+  # POST to change log level at runtime (Spring Actuator)
+  curl -X POST http://prod-host/actuator/loggers/com.example.service \
+    -H 'Content-Type: application/json' \
+    -d '{"configuredLevel": "DEBUG"}'
+  ```
+- **Reproduce via test:** write a focused integration test using `@SpringBootTest` with `@ActiveProfiles("prod-like")` that mimics the exact incoming request payload. This is the cleanest long-term approach.
 
 
+<br><br>
+
+**How can you enable a specific environment without using Spring Profiles?**
+
+- Instead of `spring.profiles.active`, you define a custom property in `application.properties` - like `app.active.env=dev` - and then use `@ConditionalOnProperty` on your beans.
+- The `KafkaConfig` bean is only loaded when `app.active.env=dev`, regardless of what Spring profile is active.
+  ```properties
+  # application.properties
+  app.active.env= dev
+  # spring.profiles.active is NOT used here
+  ```
+  ```java
+  @Bean
+  @ConditionalOnProperty(
+      prefix = "app.active",
+      name   = "env",
+      havingValue = "dev"
+  )
+  public KafkaProps devKafkaProps() {
+      // only created when app.active.env=dev
+      return new KafkaProps("2.237.64.90:8181", 8181, "dev-user-topic");
+  }
+  ```
+- Why would you do this? Because `@Profile` is a coarse switch — it's all-or-nothing per profile. With `@ConditionalOnProperty` you can have fine-grained per-bean control using any custom key, even dynamically toggling features like feature flags.
+- **Internal working:** During startup, Spring's `ConditionEvaluator` checks each registered condition. `OnPropertyCondition` reads the Environment object, resolves the property key, compares its value to havingValue, and decides whether to register that bean definition.
+```mermaid
+graph LR
+    %% Node Definitions
+    Start([App Startup])
+    LoadProps[Spring loads<br/>application.properties]
+    Decision{app.active.env<br/>= dev ?}
+    Registered[devKafkaProps<br/>bean registered]
+    Skipped[Bean skipped<br/>not in context]
+
+    %% Connections
+    Start --> LoadProps
+    LoadProps --> Decision
+    Decision -- Yes --> Registered
+    Decision -- No --> Skipped
+
+    %% Styling
+    style Registered fill:#062b1a,stroke:#00ff88,color:#00ff88
+    style Skipped fill:#2b0606,stroke:#ff4d4d,color:#ff4d4d
+    style Decision fill:#1a0c2e,stroke:#7b4dff,color:#ffffff
+    style LoadProps fill:#161b22,stroke:#30363d,color:#ffffff
+    style Start fill:#161b22,stroke:#30363d,color:#ffffff
+```
 
 
+<br><br>
+
+**What is the difference between `@Profile` and `@Conditional`?**
+
+- `@Profile` is a specialised, high-level annotation. A bean annotated with `@Profile("dev")` is only loaded when `spring.profiles.active` contains `dev`. Internally, `@Profile` is itself implemented using `@Conditional(ProfileCondition.class)`.
+- `@Conditional` is a basic and flexible way to decide whether Spring should create a bean or not. You give it a class (called a `Condition`) that contains logic in a `matches()` method. When your application starts, Spring runs this method. If it returns true, the bean is created. If it returns false, the bean is skipped.
+  - Inside that `matches()` method, you can check anything you want - like:
+    - a configuration property
+    - whether a class exists in the project
+    - whether another bean is already created
+    - the operating system
+
+| `@Profile` | `@Conditional` / `@ConditionalOnProperty` |
+| :- | :- |
+| Needs `spring.profiles.active` | Works on any custom property |
+| Coarse-grained, env-level control | Fine-grained, per-bean control |
+| Simple to use, limited flexibility | Highly flexible, custom Condition class |
+| Built on top of `@Conditional` | Base mechanism in Spring |
+| Example: @Profile("prod") | Example: feature flag toggling |
 
 
-
-
-
-
-
-
-
-
-
-
-
+```java
+// @Profile internally → just sugar over @Conditional
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Conditional(ProfileCondition.class)  // ← this is all @Profile really is
+public @interface Profile {
+    String[] value();
+}
+```
 
 
 
