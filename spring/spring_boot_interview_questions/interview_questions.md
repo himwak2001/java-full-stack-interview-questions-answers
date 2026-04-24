@@ -1399,39 +1399,375 @@ graph TD
 ```
 
 
+<br><br>
+
+**You find a bug in production. How do you debug it from your local machine?**
+
+- First, activate the prod profile locally. Set `spring.profiles.active=prod` in your `application.properties` or pass it as a JVM arg: `-Dspring.profiles.active=prod`. This loads your `application-prod.properties`, giving you the same config context.
+- But you don't want to hit the real prod DB - instead, take a sanitized snapshot of the relevant prod data (rows that reproduce the bug) and import it into your local DB. Change only the datasource URL in your local config.
+- **Remote Debugging (JDWP):** if the bug is non-reproducible locally, attach IntelliJ to the running prod JVM. Start the prod server with debug flags, then create a Remote JVM Debug run config in IntelliJ pointing to that host:port.
+  ```powershell
+  # JVM startup flag on prod server (careful — never leave open in true prod)
+  -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+
+  # IntelliJ → Run → Edit Configurations → Remote JVM Debug
+  Host: prod-server-ip   Port: 5005
+  ```
+- **Actuator + Distributed Tracing:** expose /actuator/loggers endpoint and dynamically change log level to DEBUG for the problematic package without restarting the app.
+  ```powershell
+  # POST to change log level at runtime (Spring Actuator)
+  curl -X POST http://prod-host/actuator/loggers/com.example.service \
+    -H 'Content-Type: application/json' \
+    -d '{"configuredLevel": "DEBUG"}'
+  ```
+- **Reproduce via test:** write a focused integration test using `@SpringBootTest` with `@ActiveProfiles("prod-like")` that mimics the exact incoming request payload. This is the cleanest long-term approach.
 
 
+<br><br>
+
+**How can you enable a specific environment without using Spring Profiles?**
+
+- Instead of `spring.profiles.active`, you define a custom property in `application.properties` - like `app.active.env=dev` - and then use `@ConditionalOnProperty` on your beans.
+- The `KafkaConfig` bean is only loaded when `app.active.env=dev`, regardless of what Spring profile is active.
+  ```properties
+  # application.properties
+  app.active.env= dev
+  # spring.profiles.active is NOT used here
+  ```
+  ```java
+  @Bean
+  @ConditionalOnProperty(
+      prefix = "app.active",
+      name   = "env",
+      havingValue = "dev"
+  )
+  public KafkaProps devKafkaProps() {
+      // only created when app.active.env=dev
+      return new KafkaProps("2.237.64.90:8181", 8181, "dev-user-topic");
+  }
+  ```
+- Why would you do this? Because `@Profile` is a coarse switch — it's all-or-nothing per profile. With `@ConditionalOnProperty` you can have fine-grained per-bean control using any custom key, even dynamically toggling features like feature flags.
+- **Internal working:** During startup, Spring's `ConditionEvaluator` checks each registered condition. `OnPropertyCondition` reads the Environment object, resolves the property key, compares its value to havingValue, and decides whether to register that bean definition.
+```mermaid
+graph LR
+    %% Node Definitions
+    Start([App Startup])
+    LoadProps[Spring loads<br/>application.properties]
+    Decision{app.active.env<br/>= dev ?}
+    Registered[devKafkaProps<br/>bean registered]
+    Skipped[Bean skipped<br/>not in context]
+
+    %% Connections
+    Start --> LoadProps
+    LoadProps --> Decision
+    Decision -- Yes --> Registered
+    Decision -- No --> Skipped
+
+    %% Styling
+    style Registered fill:#062b1a,stroke:#00ff88,color:#00ff88
+    style Skipped fill:#2b0606,stroke:#ff4d4d,color:#ff4d4d
+    style Decision fill:#1a0c2e,stroke:#7b4dff,color:#ffffff
+    style LoadProps fill:#161b22,stroke:#30363d,color:#ffffff
+    style Start fill:#161b22,stroke:#30363d,color:#ffffff
+```
 
 
+<br><br>
+
+**What is the difference between `@Profile` and `@Conditional`?**
+
+- `@Profile` is a specialised, high-level annotation. A bean annotated with `@Profile("dev")` is only loaded when `spring.profiles.active` contains `dev`. Internally, `@Profile` is itself implemented using `@Conditional(ProfileCondition.class)`.
+- `@Conditional` is a basic and flexible way to decide whether Spring should create a bean or not. You give it a class (called a `Condition`) that contains logic in a `matches()` method. When your application starts, Spring runs this method. If it returns true, the bean is created. If it returns false, the bean is skipped.
+  - Inside that `matches()` method, you can check anything you want - like:
+    - a configuration property
+    - whether a class exists in the project
+    - whether another bean is already created
+    - the operating system
+
+| `@Profile` | `@Conditional` / `@ConditionalOnProperty` |
+| :- | :- |
+| Needs `spring.profiles.active` | Works on any custom property |
+| Coarse-grained, env-level control | Fine-grained, per-bean control |
+| Simple to use, limited flexibility | Highly flexible, custom Condition class |
+| Built on top of `@Conditional` | Base mechanism in Spring |
+| Example: @Profile("prod") | Example: feature flag toggling |
 
 
+```java
+// @Profile internally → just sugar over @Conditional
+@Target({ElementType.TYPE, ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Conditional(ProfileCondition.class)  // ← this is all @Profile really is
+public @interface Profile {
+    String[] value();
+}
+```
 
+<br><br>
 
+**What is AOP (Aspect-Oriented Programming)?**
 
+- **AOP separates concerns:** It keeps common tasks (like logging, security, transactions) separate from core business logic.
+- **Cross-cutting concerns:** These are features used across many classes (e.g., logging, validation, auditing).
+- **Without AOP:** You’d have to repeat the same code (logging, transactions, etc.) inside every method, making code messy and hard to maintain.
+- **With AOP:** These concerns are written once (as aspects) and automatically applied where needed, keeping your code clean and modular.
+- **Core AOP Terms to know:**
+  - **Aspect:** the class containing the cross-cutting logic. E.g., `LoggingAspect.java`.
+  - **Advice:** the actual code to run. Types: `@Before`, `@After`, `@AfterReturning`, `@AfterThrowing`, `@Around`.
+  - **Weaving:** the process of applying the aspect to the target class. Spring AOP does this at runtime via proxy (CGLIB or JDK dynamic proxy), not compile-time.
+```mermaid
+sequenceDiagram
+    participant C as Controller
+    participant P as Spring AOP Proxy
+    participant S as ProductService
+    participant L as LoggingAspect
+    participant T as TransactionAspect
 
+    C->>P: saveProduct(product)
 
+    %% Before advices
+    P->>L: @Before - log entry
+    P->>T: @Before - begin txn
 
+    %% Business logic
+    P->>S: saveProduct() - actual business logic
+    S-->>P: returns productList
 
+    %% AfterReturning advices
+    P->>T: @AfterReturning - commit txn
+    P->>L: @AfterReturning - log success
 
+    %% Return to controller
+    P-->>C: returns result
+```
+```java
+@Aspect
+@Component
+public class LoggingAspect {
 
+    @Before("execution(* com.javatechie.service.*.*(..))")
+    public void logBefore(JoinPoint jp) {
+        System.out.println("Before: " + jp.getSignature().getName());
+    }
 
+    @AfterThrowing(pointcut = "execution(* com.javatechie.service.*.*(..))",
+                   throwing = "ex")
+    public void logException(JoinPoint jp, Exception ex) {
+        System.out.println("Exception in: " + jp.getSignature() + " → " + ex.getMessage());
+    }
+}
+```
 
+<br><br>
 
+**What is a Pointcut and a JoinPoint in AOP?**
 
+- **JoinPoint:** a specific moment in your application's execution where advice can be applied. Think of it as a candidate location. Examples: method execution, method call, exception thrown, field access. Spring AOP only supports method execution join points.
+- **Pointcut:** an expression (predicate) that selects which join points the advice should actually run at. It's the filter. In the screenshot: `//pointcut (com.
+  ```java
+  // Reusable pointcut definition
+  @Pointcut("execution(* com.javatechie.service.*.*(..))")
+  public void serviceLayer() {}  // empty method — just a named handle
 
+  // Advice references the named pointcut
+  @Before("serviceLayer()")
+  public void logBeforeAnyServiceMethod(JoinPoint jp) {
+      // jp.getArgs()        → method arguments
+      // jp.getSignature()   → method name + return type
+      // jp.getTarget()      → the actual bean being called
+  }
+  ```
+- **Pointcut expression anatomy:**
+  ```java
+  execution(  modifiers?  returnType  className?  methodName  (params)  throws? )
 
+  // All methods in service package, any return type, any params
+  execution(* com.javatechie.service.*.*(..))
 
+  // Only saveProduct in ProductService
+  execution(* com.javatechie.service.ProductService.saveProduct(..))
 
+  // Only methods returning List
+  execution(java.util.List com.javatechie.service.*.*(..))
+  ```
 
+<br><br>
 
+**What are the different types of Advice in AOP?**
 
+There are 5 types of advice in Spring AOP. Each defines when relative to the target method the cross-cutting code executes.
 
+- **`@Before`**
+  - Runs BEFORE the method
+  - Executes before the join point. Cannot stop the method from running (unless it throws an exception). Used for validation, logging request, auth checks.
+- **`@After` (finally)**
+  - Runs AFTER always
+  - Executes after the method regardless of outcome — success or exception. Like a finally block. Good for cleanup / releasing resources.
+- **`@AfterReturning`**
+  - Runs AFTER — only on success
+  - Executes only when method returns normally (no exception). You can access the actual return value via the returning attribute. Used for logging response body.
+- **`@AfterThrowing`**
+  - Runs AFTER — only on exception
+  - Executes only if the method throws an exception. You get the exception object via throwing attribute. Used for alerting, error tracking.
+- **`@Around` (most powerful)**
+  - Completely wraps the method. You control when to call `pjp.proceed()`. Can alter args, return value, or skip the method entirely. Used for execution time tracking, caching, circuit breaking.
+  ```mermaid
+  sequenceDiagram
+    participant C as Caller
+    participant P as AOP Proxy
+    participant T as Target Method
 
+    C->>P: call saveProduct()
+    
+    Note right of P: @Before advice runs
+    P->>P: 
 
+    Note right of P: @Around – before pjp.proceed()
+    P->>P: 
 
+    P->>T: pjp.proceed() → actual method
 
+    rect rgb(30, 40, 60)
+        Note left of T: alt
+        
+        alt success
+            T-->>P: returns value
+            Note right of P: @Around – after pjp.proceed()
+            P->>P: 
+            Note right of P: @AfterReturning runs (has return val)
+            P->>P: 
+        else exception
+            T-->>P: throws exception
+            Note right of P: @AfterThrowing runs (has exception)
+            P->>P: 
+        end
+    end
 
+    Note right of P: @After runs (always – like finally)
+    P->>P: 
 
+    P-->>C: return / rethrow
+  ```
+  ```java
+  @Aspect
+  @Component
+  @Slf4j
+  public class LoggingAdvice {
 
+      // Named reusable pointcut — all methods in ProductService
+      @Pointcut("execution(* com.javatechie.service.ProductService.*(..))")
+      private void logPointcut() {}
 
+      // 1. @Before — runs before method, logs request body
+      @Before("logPointcut()")
+      public void logRequest(JoinPoint jp) throws JsonProcessingException {
+          log.info("Before Advice - class: {} method: {}",
+              jp.getTarget(), jp.getSignature().getName());
+          log.info("Before Advice - Request Body: {}",
+              new ObjectMapper().writeValueAsString(jp.getArgs()));
+      }
 
+      // 2. @After — always runs (like finally), logs class + method
+      @After("execution(* com.javatechie.service.ProductService.*(..))")
+      public void logResponse(JoinPoint jp) {
+          log.info("After Advice - class: {} method: {}",
+              jp.getTarget(), jp.getSignature().getName());
+      }
+
+      // 3. @AfterReturning — runs only on success, gets return value
+      @AfterReturning(
+          value = "execution(* com.javatechie.controller.ProductController.*(..))",
+          returning = "object"
+      )
+      public void logResponseBody(JoinPoint jp, Object object) throws JsonProcessingException {
+          log.info("AfterReturning - Response Body: {}",
+              new ObjectMapper().writeValueAsString(object));
+      }
+
+      // 4. @AfterThrowing — runs only when exception is thrown
+      @AfterThrowing(
+          value = "execution(* com.javatechie.service.ProductService.*(..))",
+          throwing = "ex"
+      )
+      public void logError(JoinPoint jp, Exception ex) {
+          log.info("AfterThrowing - method: {} error: {}",
+              jp.getSignature().getName(), ex.getMessage());
+      }
+  }
+  ```
+
+<br><br>
+
+**Can you use AOP to measure method performance or build a request/response logging framework?**
+
+- Yes — and this is one of the best real-world use cases of AOP. The tutorial demonstrates both: a `@TrackExecutionTime` custom annotation for performance tracking and a `@LogPayloads` annotation for logging. Both use @Around advice, which is the only advice type that can wrap both the before and after phases in a single method.
+- **Use Case 1 — Method Execution Time Tracking**
+  - The idea: create a custom annotation `@TrackExecutionTime`, annotate whichever service method you want to measure, and a single `@Around` aspect automatically captures how long that method takes.
+    - **Step 1 — Custom annotation**
+      - Define a marker annotation with method-level target and RUNTIME retention so Spring can read it via reflection.
+      ```java
+      @Target(ElementType.METHOD)       // only on methods
+      @Retention(RetentionPolicy.RUNTIME) // readable at runtime by AOP proxy
+      public @interface TrackExecutionTime {}
+      ```
+    - **Step 2 — @Around aspect**
+      ```java
+      @Aspect
+      @Component
+      @Slf4j
+      public class LogExecutionTracker {
+
+          @Around("@annotation(com.javatechie.annotation.TrackExecutionTime)")
+          public Object logExecutionDuration(ProceedingJoinPoint pjp) throws Throwable {
+
+              // === Before advice section ===
+              long startTime = System.currentTimeMillis();
+
+              Object result = pjp.proceed(); // ← actual method runs here
+
+              // === After advice section ===
+              long endTime = System.currentTimeMillis();
+              log.info("method {} execution takes {} ms",
+                      pjp.getSignature(), (endTime - startTime));
+
+              return result; // must return, else caller gets null
+          }
+      }
+      ```
+      ```java
+      @TrackExecutionTime  // ← just this annotation, zero extra code in method body
+      @LogPayloads
+      public List<Product> saveProduct(Product product) {
+          // business logic only — all cross-cutting handled by aspects
+      }
+      ```
+- **Use Case 2 — Request & Response Logging Framework**
+  - The `@LogPayloads` custom annotation combined with `LoggingAdvice` creates a zero-boilerplate logging layer — no logging code inside any service method, yet every request body and response body gets logged automatically.
+  - **How it works end-to-end:** The `@Before` advice intercepts the method call, serialises `jp.getArgs()` (the request payload) to JSON using Jackson's ObjectMapper, and logs it. The `@AfterReturning` advice gets the actual return value via the returning attribute and logs the response.
+    ```mermaid
+    flowchart TD
+    A([HTTP Request\nPOST /save-product]) --> B[ProductController]
+    B --> C{AOP Proxy\nfor ProductService}
+
+    C --> D["@Before\nLoggingAdvice.logRequest()\n→ log class, method name\n→ log request body as JSON"]
+    D --> E["@Around begins\nLogExecutionTracker\n→ startTime = currentTimeMillis()"]
+    E --> F["pjp.proceed()\n→ ProductService.saveProduct()\n→ actual business logic"]
+    F -->|success| G["@Around ends\n→ endTime — log duration ms"]
+    F -->|exception| H["@AfterThrowing\n→ log method + exception message"]
+    G --> I["@AfterReturning\n→ log response body as JSON"]
+    I --> J["@After (finally)\n→ always runs"]
+    H --> J
+    J --> K([Response to client])
+
+    style A fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style K fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style C fill:#2a2040,stroke:#7b6cff,color:#c8d3e8
+    style F fill:#1a1e2b,stroke:#252a3a,color:#e2e8f0
+    style H fill:#2a1010,stroke:#ff6b6b,color:#ff6b6b
+    style D fill:#1a2a1a,stroke:#00d4aa,color:#aabba8
+    style E fill:#1a1a2a,stroke:#7b6cff,color:#a8aacc
+    style G fill:#1a1a2a,stroke:#7b6cff,color:#a8aacc
+    style I fill:#2a2a10,stroke:#ffc847,color:#ccb870
+    style J fill:#102020,stroke:#60a5fa,color:#7ab8d8
+    ```
+- **ProceedingJoinPoint vs JoinPoint** — this is a common follow-up question. Regular advice types (`@Before`, `@After`, etc.) receive a plain `JoinPoint` — you can inspect the method but can't control execution. `@Around` requires `ProceedingJoinPoint`, which extends `JoinPoint` and adds the critical `proceed()` method to actually invoke the target.
