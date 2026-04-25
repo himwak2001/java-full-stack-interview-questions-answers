@@ -299,13 +299,67 @@ The SDK is a collection of libraries that allow you to manage AWS services progr
    ![My Image](screenshots/iam_image_13.png)
 
 
+<br><br>
+
+### IAM Roles for Services
+
+In AWS, it’s not just people who need permissions; services do too.
+
+- An IAM Role is an identity you create that has specific permissions, but it is not tied to a specific person. It is intended to be assumed by anyone (or anything) that needs it.
+- If your Spring Boot application running on an EC2 instance needs to access an S3 bucket, you assign an IAM Role to the EC2 instance.
+- **Common Use Cases:**
+  - **EC2 Instance Roles:** For apps running on virtual servers.
+  - **Lambda Function Roles:** To allow code to access databases or queues.
+  - **CloudFormation Roles:** To allow the infrastructure-as-code service to create resources for you.
+
+<br>
+
+**Hands-On: IAM Roles for Services**
+
+1. **Complete flow**
+   ![My Image](screenshots/iam_image_14.png)
+
+
+<br><br>
+
+### IAM Security Tools
+
+AWS provides two main ways to audit your security health.
+
+1. **IAM Credentials Report (Account-level)**
+   - A CSV/JSON file listing all users in your account.
+   - Status of their passwords, MFA, and when their access keys were last rotated.
+   - Used by security auditors to find inactive users or users without MFA.
+2. **IAM Access Advisor (User-level)**
+   - A service-specific view for a single user.
+   - Which services a user has access to and when they last used them.
+   - If a user has "Full Admin" but hasn't touched S3 in 60 days, you can safely remove that permission (Least Privilege).
 
 
 
+<br><br>
+
+### Shared Responsibility Model for IAM
+
+Security is a partnership between you and AWS.
+
+| AWS Responsibility (of the Cloud) | Your Responsibility (in the Cloud) |
+| :- | :- |
+| Infrastructure: Keeping the physical hardware and global network secure. | Management: Creating and monitoring Users, Groups, and Roles. |
+| Configuration: Vulnerability analysis of the IAM service itself. | MFA: Enforcing Multi-Factor Authentication on all accounts. |
+| Compliance: Ensuring the underlying service meets global standards (ISO, SOC). | Rotation: Changing your access keys frequently. |
 
 
 
+<br><br>
 
+### IAM Guidelines & Best Practices
+
+1. **Protect the Root:** Use it only for initial setup.
+2. **One User = One Person:** Don't share accounts.
+3. **Group Permissions:** Apply policies to groups, not individual users.
+4. **Roles for Machines:** Use Roles for EC2/Lambda (never hardcode keys).
+5. **Audit Regularly:** Use Credentials Report and Access Advisor.
 
 
 
