@@ -1771,3 +1771,323 @@ There are 5 types of advice in Spring AOP. Each defines when relative to the tar
     style J fill:#102020,stroke:#60a5fa,color:#7ab8d8
     ```
 - **ProceedingJoinPoint vs JoinPoint** — this is a common follow-up question. Regular advice types (`@Before`, `@After`, etc.) receive a plain `JoinPoint` — you can inspect the method but can't control execution. `@Around` requires `ProceedingJoinPoint`, which extends `JoinPoint` and adds the critical `proceed()` method to actually invoke the target.
+
+<br><br>
+
+**How does your application interact with the database and which frameworks are you using?**
+
+- we use Spring Data JPA as the abstraction layer, which internally uses Hibernate as the JPA implementation. Hibernate talks to the DB via JDBC using the configured DataSource.
+- You define an Entity class mapped to a DB table, create a Repository interface extending JpaRepository, and Spring Data JPA auto-generates the implementation at startup - you write zero SQL for standard CRUD.
+- **Code Snippet:**
+  - **`Employee.java` - entity**
+    ```java
+    @Entity          // tells Hibernate to map this class to the DB table
+    @Data            // Lombok — generates getters, setters, equals, hashCode
+    @AllArgsConstructor
+    @NoArgsConstructor
+    public class Employee {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private int id;
+        private String name;
+        private String deptName;
+        private double salary;
+        private String emailId;
+        private int age;
+    }
+    ```
+  - **`EmployeeRepository.java` - repository**
+    ```java
+    // Zero implementation needed — Spring Data JPA generates it at runtime
+    public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
+
+        // Derived query — Spring parses method name and generates SQL
+        List<Employee> findByDeptName(String deptName);
+
+        List<Employee> findBySalaryAndAge(double salary, int age);
+    }
+    ```
+  - **`application.properties` - datasource config**
+    ```properties
+    # DataSource
+    spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+    spring.datasource.url=jdbc:mysql://localhost:3306/javatechie
+    spring.datasource.username=root
+    spring.datasource.password=Password
+
+    # JPA / Hibernate
+    spring.jpa.show-sql=true
+    spring.jpa.hibernate.ddl-auto=update
+    spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.MySQLDialect
+    ```
+- **Full DB interaction chain in Spring Boot**
+  ```mermaid
+  flowchart LR
+    A([Controller]) --> B[Service]
+    B --> C[Repository\nJpaRepository]
+    C --> D[Spring Data JPA\nAuto-generated impl]
+    D --> E[Hibernate\nORM Engine]
+    E --> F[JDBC\nDataSource]
+    F --> G[(MySQL / Oracle\nDB)]
+
+    style A fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style B fill:#1a1e2b,stroke:#252a3a,color:#e2e8f0
+    style C fill:#1a1a2a,stroke:#7b6cff,color:#c8d3e8
+    style D fill:#1a1a2a,stroke:#7b6cff,color:#c8d3e8
+    style E fill:#2a2a10,stroke:#ffc847,color:#ccb870
+    style F fill:#1a1e2b,stroke:#252a3a,color:#e2e8f0
+    style G fill:#0d1a2a,stroke:#60a5fa,color:#60a5fa
+  ```
+  - **Internal startup sequence:** Spring Boot auto-configures a DataSource bean from properties → creates a SessionFactory (Hibernate's core) → Spring wraps it in a LocalContainerEntityManagerFactoryBean → scans for @Entity classes → creates proxy implementations for all JpaRepository interfaces → wires a JpaTransactionManager.
+
+<br><br>
+
+**Why is it important to configure a physical naming strategy?**
+
+- When Hibernate maps your Java entity field names to DB column names, it applies a naming strategy. By default in recent Spring Boot versions, Hibernate uses SpringPhysicalNamingStrategy, which converts camelCase field names to snake_case column names automatically.
+- **Example of the problem:** If you have a field `deptName` in your entity, Hibernate with default strategy would look for column `dept_name` in the table (snake_case). But if your existing DB table has the column as `deptName` (camelCase), the app fails at runtime with a `column-not-found` error.
+- **Naming strategy comparison**
+  ```mermaid
+  flowchart TD
+    F["Java Field: deptName"]
+
+    F --> A["SpringPhysicalNamingStrategy\n(default in Spring Boot)"]
+    F --> B["PhysicalNamingStrategyStandardImpl\n(plain Hibernate)"]
+
+    A -->|"converts to"| AC["DB Column: dept_name\n(snake_case)"]
+    B -->|"keeps as-is"| BC["DB Column: deptName\n(unchanged)"]
+
+    AC -->|"If your DB has deptName column"| AE["❌ Column not found error"]
+    BC -->|"If your DB has deptName column"| BE["✅ Works correctly"]
+
+    style F fill:#1a1e2b,stroke:#252a3a,color:#e2e8f0
+    style A fill:#2a1010,stroke:#ff6b6b,color:#ff6b6b
+    style B fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style AC fill:#2a1010,stroke:#ff6b6b,color:#ccaaaa
+    style BC fill:#0d2a22,stroke:#00d4aa,color:#aaccbb
+    style AE fill:#2a1010,stroke:#ff6b6b,color:#ff6b6b
+    style BE fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+  ```
+  ```properties
+  # If your legacy DB uses camelCase column names — use StandardImpl
+  spring.jpa.hibernate.naming.physical-strategy=\
+      org.hibernate.boot.model.naming.PhysicalNamingStrategyStandardImpl
+
+  # Default Spring Boot strategy — converts camelCase → snake_case
+  # spring.jpa.hibernate.naming.physical-strategy=
+  #     org.hibernate.boot.model.naming.CamelCaseToUnderscoresNamingStrategy
+  ```
+- Two strategies in play: There are actually two naming strategies. The implicit strategy controls how unspecified names are derived from Java names. The physical strategy is the final transformation applied just before Hibernate executes SQL. Physical strategy is the one you usually need to configure.
+
+
+<br><br>
+
+**What are the key benefits of using Spring Data JPA?**
+
+- **Zero boilerplate for CRUD:** Just extend `JpaRepository<Entity, ID>` and you instantly get `save()`, `findById()`, `findAll()`, `delete()`, `count()`, `existsById()` - all implemented automatically at runtime via a proxy. No DAO classes, no SQL, no XML mappings.
+- **Derived query methods:** Spring Data JPA parses your repository method names and generates JPQL queries automatically. `findByDeptName(String deptName)` generates `SELECT e FROM Employee e WHERE e.deptName = ?1` without you writing anything.
+- **Pagination and sorting out of the box:** Pass a Pageable parameter to any query method and you get paginated results with total pages, total elements - zero additional code.
+  ```java
+  // Built-in CRUD — no implementation needed
+  employeeRepo.save(employee);              // INSERT or UPDATE
+  employeeRepo.findById(1);                 // SELECT by PK → Optional
+  employeeRepo.findAll();                   // SELECT *
+  employeeRepo.deleteById(1);              // DELETE by PK
+
+  // Derived query — Spring generates SQL from method name
+  employeeRepo.findByDeptName("HR");        // WHERE dept_name = 'HR'
+  employeeRepo.findBySalaryAndAge(50000.0, 30); // compound WHERE
+
+  // Custom JPQL query
+  @Query("SELECT e FROM Employee e WHERE e.salary > :minSalary")
+  List<Employee> findHighEarners(@Param("minSalary") double minSalary);
+
+  // Pagination
+  Page<Employee> findByDeptName(String dept, Pageable pageable);
+  ```
+- **Transaction management integration:** All repository methods are transactional by default. `save()` runs inside a transaction. You can add `@Transactional` at the service layer to span multiple repo calls in one atomic unit.
+- **Database portability:** Because you write JPQL (object-oriented query language), not SQL, you can switch from MySQL to PostgreSQL to Oracle with just a dialect property change. No query changes needed in most cases.
+
+
+<br><br>
+
+**What are the differences between Hibernate, JPA, and Spring Data JPA?**
+
+These three are at different abstraction levels - they're not alternatives, they work as a stack. Understanding the layering is what 3+ YOE candidates are expected to explain clearly.
+
+| Hibernate (Implementation) | JPA (Interface/Spec) | Spring Data JPA (Abstraction) |
+| :- | :- | :- |
+| The most popular JPA implementation | Java Persistence API | Sits on top of JPA/Hibernate |
+| Does the real work: ORM, SQL gen | A specification - just interfaces + annotations, no code | Eliminates DAO/repository boilerplate |
+| Table mapping via `@Entity` | Defines: `@Entity`, `@Id`, `EntityManager`, JPQL | Auto-generates CRUD at runtime |
+| Caching (L1, L2) | Part of Jakarta EE standard | Derived query method parsing |
+| Transaction management | Does NOT execute anything itself | Pagination, Sorting built-in |
+| Like: MySQL JDBC Driver impl | Like: JDBC interface | Like: Spring JDBC Template |
+
+**Layered architecture — how they stack**
+
+```mermaid
+flowchart TB
+    App["Your Application Code\n(Repository interfaces, @Entity classes)"]
+    SDJ["Spring Data JPA\n— auto-generates repository impls\n— derived queries, pagination"]
+    JPA["JPA Specification\n— @Entity, @Id, EntityManager API\n— JPQL standard"]
+    HIB["Hibernate (JPA Impl)\n— ORM engine, SQL generation\n— L1/L2 cache, schema DDL\n— Session / SessionFactory"]
+    DS["DataSource / JDBC\n— connection pool (HikariCP)"]
+    DB[("Database\nMySQL / PostgreSQL / Oracle")]
+
+    App --> SDJ
+    SDJ --> JPA
+    JPA --> HIB
+    HIB --> DS
+    DS --> DB
+
+    style App fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style SDJ fill:#0d2a22,stroke:#00d4aa,color:#aaccbb
+    style JPA fill:#0d1a2a,stroke:#60a5fa,color:#60a5fa
+    style HIB fill:#2a2a10,stroke:#ffc847,color:#ccb870
+    style DS fill:#1a1e2b,stroke:#252a3a,color:#e2e8f0
+    style DB fill:#0d1a2a,stroke:#60a5fa,color:#60a5fa
+```
+  - JPA is like the JDBC interface - a standard contract. Hibernate is like the MySQL JDBC driver - the actual implementation. Spring Data JPA is like Spring's JdbcTemplate - a higher-level helper that removes boilerplate on top of everything below it.
+  - **Can you use Hibernate without Spring Data JPA?** Yes - you'd inject EntityManager directly and write queries manually via em.createQuery(). This gives more control but far more boilerplate. Spring Data JPA exists precisely to eliminate that overhead.
+- **Common interview trap:** Interviewers often ask "is Hibernate and JPA the same thing?" - the answer is No. JPA is the specification (interfaces in jakarta.persistence.*). Hibernate is one implementation of that spec. EclipseLink and OpenJPA are also JPA implementations but Hibernate is the industry standard.
+
+
+<br><br>
+
+**How can you connect multiple databases or data sources in a single application?**
+
+- By default, Spring Boot auto-configures exactly one DataSource. When you need multiple databases (e.g. employee DB + department DB), you must disable auto-configuration and define everything manually - one full config class per datasource, each with its own DataSource bean, EntityManagerFactory, and TransactionManager.
+- The 4-bean pattern: For each datasource you define: (1) `DataSource` - the connection pool, (2) `EntityManagerFactory` - tells Hibernate which packages to scan for entities, (3) `TransactionManager` - handles transactions for that datasource, (4) tell Spring which repository packages belong to which datasource via `@EnableJpaRepositories`.
+- **Code Snippet:**
+  - **Step 1 - `application.properties` - two separate DB configs**
+    ```properties
+    # Employee DataSource → javatechie_ds1
+    spring.datasource.employee.driver-class-name=com.mysql.cj.jdbc.Driver
+    spring.datasource.employee.url=jdbc:mysql://localhost:3306/javatechie_ds1
+    spring.datasource.employee.username=root
+    spring.datasource.employee.password=Password
+
+    # Department DataSource → javatechie_ds2
+    spring.datasource.department.driver-class-name=com.mysql.cj.jdbc.Driver
+    spring.datasource.department.url=jdbc:mysql://localhost:3306/javatechie_ds2
+    spring.datasource.department.username=root
+    spring.datasource.department.password=Password
+
+    spring.jpa.show-sql=true
+    ```
+  - **Step 2 - `EmployeeDataSourceConfig.java` - primary datasource**
+    ```java
+    @Configuration
+    @EnableTransactionManagement
+    @EnableJpaRepositories(
+        entityManagerFactoryRef = "employeeEntityManagerFactory",
+        transactionManagerRef   = "employeeTransactionManager",
+        basePackages            = { "com.javatechie.repository.employee" }
+    )
+    public class EmployeeDataSourceConfig {
+
+        // 1. DataSource Properties bean
+        @Primary
+        @Bean(name = "employeeProperties")
+        @ConfigurationProperties("spring.datasource.employee")
+        public DataSourceProperties dataSourceProperties() {
+            return new DataSourceProperties();
+        }
+
+        // 2. DataSource bean
+        @Primary
+        @Bean(name = "employeeDatasource")
+        @ConfigurationProperties(prefix = "spring.datasource.employee")
+        public DataSource datasource(@Qualifier("employeeProperties") DataSourceProperties props) {
+            return props.initializeDataSourceBuilder().build();
+        }
+
+        // 3. EntityManagerFactory — scan only employee entity packages
+        @Primary
+        @Bean(name = "employeeEntityManagerFactory")
+        public LocalContainerEntityManagerFactoryBean entityManagerFactoryBean(
+                EntityManagerFactoryBuilder builder,
+                @Qualifier("employeeDatasource") DataSource dataSource) {
+
+            Map<String, Object> jpaProps = new HashMap<>();
+            jpaProps.put("hibernate.hbm2ddl.auto", "update");
+            jpaProps.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+
+            return builder.dataSource(dataSource)
+                          .properties(jpaProps)
+                          .packages("com.javatechie.entity.employee")
+                          .persistenceUnit("employee").build();
+        }
+
+        // 4. TransactionManager
+        @Primary
+        @Bean(name = "employeeTransactionManager")
+        public PlatformTransactionManager transactionManager(
+                @Qualifier("employeeEntityManagerFactory") EntityManagerFactory emf) {
+            return new JpaTransactionManager(emf);
+        }
+    }
+    ```
+  - **Step 3 - `DepartmentDataSourceConfig.java` - secondary (no `@Primary`)**
+    ```java
+    @Configuration
+    @EnableTransactionManagement
+    @EnableJpaRepositories(
+        entityManagerFactoryRef = "departmentEntityManagerFactory",
+        transactionManagerRef   = "departmentTransactionManager",
+        basePackages            = { "com.javatechie.repository.department" }
+    )
+    public class DepartmentDataSourceConfig {
+        // Same 4-bean pattern — no @Primary annotations
+        // @Bean("departmentProperties"), @Bean("departmentDatasource"),
+        // @Bean("departmentEntityManagerFactory"), @Bean("departmentTransactionManager")
+        // .packages("com.javatechie.entity.department")
+        // .persistenceUnit("department")
+    }
+    ```
+- **Multi-datasource architecture - two isolated DB stacks**
+  ```mermaid
+  flowchart TD
+    APP["Spring Boot Application"]
+
+    subgraph EMP["Employee Stack (Primary)"]
+        E1["EmployeeDataSourceConfig"]
+        E2["DataSource\njavatechie_ds1"]
+        E3["EntityManagerFactory\n(employee)"]
+        E4["TransactionManager\n(employee)"]
+        E5["EmployeeRepository\nEmployee entity"]
+        DB1[(MySQL\njavatechie_ds1)]
+        E1 --> E2 --> E3 --> E4
+        E5 --> E3
+        E3 --> DB1
+    end
+
+    subgraph DEPT["Department Stack (Secondary)"]
+        D1["DepartmentDataSourceConfig"]
+        D2["DataSource\njavatechie_ds2"]
+        D3["EntityManagerFactory\n(department)"]
+        D4["TransactionManager\n(department)"]
+        D5["DepartmentRepository\nDepartment entity"]
+        DB2[(MySQL\njavatechie_ds2)]
+        D1 --> D2 --> D3 --> D4
+        D5 --> D3
+        D3 --> DB2
+    end
+
+    APP --> EMP
+    APP --> DEPT
+
+    style APP fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style EMP fill:#0d1520,stroke:#60a5fa,color:#e2e8f0
+    style DEPT fill:#1a1020,stroke:#7b6cff,color:#e2e8f0
+    style DB1 fill:#0d1a2a,stroke:#60a5fa,color:#60a5fa
+    style DB2 fill:#1a0d2a,stroke:#7b6cff,color:#7b6cff
+  ```
+- **Key rules when using multiple datasources:**
+  - **One config must be `@Primary`:** When Spring sees multiple beans of the same type (`DataSource`, `EntityManagerFactory`), it needs to know which to inject by default. Mark the main one with `@Primary`.
+  - **`@Qualifier` for all injections:** In each config class, use `@Qualifier("beanName")` when injecting dependencies to ensure the right beans are wired together.
+  - **Separate entity packages:** Each `EntityManagerFactory` must scan different entity packages. The Employee factory scans `entity.employee`, Department factory scans `entity.department`. They must NOT overlap.
+  - **Separate repository packages:** `@EnableJpaRepositories(basePackages = ...)` tells Spring which repo interfaces belong to which datasource. Again, must be separate packages.
+  - **Disable auto-configuration:** Add `@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})` or Spring will conflict between auto-configured and manual DataSource beans.
