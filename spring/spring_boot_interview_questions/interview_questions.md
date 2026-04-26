@@ -1979,46 +1979,46 @@ flowchart TB
     ```
   - **Step 2 - `EmployeeDataSourceConfig.java` - primary datasource**
     ```java
-    @Configuration
-    @EnableTransactionManagement
-    @EnableJpaRepositories(
-        entityManagerFactoryRef = "employeeEntityManagerFactory",
-        transactionManagerRef   = "employeeTransactionManager",
-        basePackages            = { "com.javatechie.repository.employee" }
+    @Configuration  // Marks this class as a configuration class (like XML config but in Java)
+    @EnableTransactionManagement    // Enables Spring's annotation-driven transaction management (like @Transactional)
+    @EnableJpaRepositories(   // Enables JPA repositories and links them to specific EntityManager & TransactionManager
+        entityManagerFactoryRef = "employeeEntityManagerFactory",   // Which EntityManager to use
+        transactionManagerRef   = "employeeTransactionManager",     // Which TransactionManager to use
+        basePackages            = { "com.javatechie.repository.employee" }    // Package where repositories are located
     )
     public class EmployeeDataSourceConfig {
 
         // 1. DataSource Properties bean
-        @Primary
-        @Bean(name = "employeeProperties")
-        @ConfigurationProperties("spring.datasource.employee")
+        @Primary    // Marks this as the primary bean (used by default when multiple beans exist)
+        @Bean(name = "employeeProperties")    // Creates a Spring bean with name "employeeProperties"
+        @ConfigurationProperties("spring.datasource.employee")    // Binds properties from application.properties (spring.datasource.employee.*)
         public DataSourceProperties dataSourceProperties() {
-            return new DataSourceProperties();
+            return new DataSourceProperties();    // Holds database configuration like URL, username, password
         }
 
         // 2. DataSource bean
         @Primary
         @Bean(name = "employeeDatasource")
-        @ConfigurationProperties(prefix = "spring.datasource.employee")
-        public DataSource datasource(@Qualifier("employeeProperties") DataSourceProperties props) {
-            return props.initializeDataSourceBuilder().build();
+        @ConfigurationProperties(prefix = "spring.datasource.employee")   // Maps properties (URL, driver, etc.) from config file to this DataSource
+        public DataSource datasource(@Qualifier("employeeProperties") DataSourceProperties props) {   // Injects the DataSourceProperties bean created above
+            return props.initializeDataSourceBuilder().build();   // Builds and returns the actual DataSource object (connection pool)
         }
 
         // 3. EntityManagerFactory — scan only employee entity packages
         @Primary
         @Bean(name = "employeeEntityManagerFactory")
         public LocalContainerEntityManagerFactoryBean entityManagerFactoryBean(
-                EntityManagerFactoryBuilder builder,
-                @Qualifier("employeeDatasource") DataSource dataSource) {
+                EntityManagerFactoryBuilder builder,    // Builder provided by Spring to create EntityManagerFactory
+                @Qualifier("employeeDatasource") DataSource dataSource) {   // Injects the employee DataSource
 
             Map<String, Object> jpaProps = new HashMap<>();
-            jpaProps.put("hibernate.hbm2ddl.auto", "update");
-            jpaProps.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");
+            jpaProps.put("hibernate.hbm2ddl.auto", "update");   // Automatically updates database schema based on entities
+            jpaProps.put("hibernate.dialect", "org.hibernate.dialect.MySQLDialect");    // Specifies the SQL dialect for MySQL
 
-            return builder.dataSource(dataSource)
-                          .properties(jpaProps)
-                          .packages("com.javatechie.entity.employee")
-                          .persistenceUnit("employee").build();
+            return builder.dataSource(dataSource)   // Connects to employee DB
+                          .properties(jpaProps)   // Applies JPA properties
+                          .packages("com.javatechie.entity.employee")   // Scans only employee entities
+                          .persistenceUnit("employee").build();   // Name of persistence unit
         }
 
         // 4. TransactionManager
@@ -2026,7 +2026,7 @@ flowchart TB
         @Bean(name = "employeeTransactionManager")
         public PlatformTransactionManager transactionManager(
                 @Qualifier("employeeEntityManagerFactory") EntityManagerFactory emf) {
-            return new JpaTransactionManager(emf);
+            return new JpaTransactionManager(emf);    // JpaTransactionManager handles transactions for JPA
         }
     }
     ```
@@ -2091,3 +2091,261 @@ flowchart TB
   - **Separate entity packages:** Each `EntityManagerFactory` must scan different entity packages. The Employee factory scans `entity.employee`, Department factory scans `entity.department`. They must NOT overlap.
   - **Separate repository packages:** `@EnableJpaRepositories(basePackages = ...)` tells Spring which repo interfaces belong to which datasource. Again, must be separate packages.
   - **Disable auto-configuration:** Add `@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class})` or Spring will conflict between auto-configured and manual DataSource beans.
+
+
+<br><br>
+
+**What are the different ways to define custom queries in Spring Data JPA?**
+
+There are 3 ways to write custom queries in Spring Data JPA, each with a different tradeoff between convenience and control.
+
+1. **Derived Method Name**
+   - Spring parses the method name and auto-generates the query. 
+   - Zero SQL or JPQL needed.
+   - Simplest.
+   - Gets unreadable for complex conditions.
+      ```java
+      // ── WAY 1: Derived method name ──────────────────────────────────────────
+      // Spring generates: SELECT e FROM Employee e WHERE e.salary = ?1
+      List<Employee> findBySalary(double salary);
+      List<Employee> findByDeptName(String deptName);
+      List<Employee> findBySalaryAndAge(double salary, int age);
+      ```
+2. **`@Query` (JPQL)**
+   - Write JPQL - object-oriented query using entity class names, not table names.
+   - Full control, portable.
+   - Slightly verbose.
+      ```java
+      // ── WAY 2: @Query with JPQL (positional param) ─────────────────────────
+      // "Employee" = Java class name, "e.salary" = Java field name (not column)
+      @Query(value = "SELECT e FROM Employee e WHERE e.salary = ?1")
+      List<Employee> findEmployee(double salary);
+
+      // Same with named param — cleaner for multiple params
+      @Query(value = "SELECT e FROM Employee e WHERE e.salary > :salary")
+      List<Employee> findEmployeeWithJPQL(@Param("salary") double salary);
+      ```
+3. **`@Query` (Native SQL)**
+   - Raw SQL passed directly to the DB. 
+   - Set `nativeQuery=true`.
+   - Use when JPQL can't express the query.
+   - Full SQL power.
+   - DB-specific, breaks portability.
+      ```java
+      // ── WAY 3: @Query with Native SQL ──────────────────────────────────────
+      // "Employee" = actual DB table name, uses actual SQL syntax
+      @Query(value = "SELECT * FROM Employee where salary > ?1", nativeQuery = true)
+      List<Employee> findEmployeeWithSQL(@Param("salary") double salary);
+      ```
+4. **JPQL vs SQL - the key difference**
+   ```mermaid
+   flowchart LR
+    subgraph JPQL["JPQL (DB-agnostic)"]
+      J["SELECT e FROM Employee e\nWHERE e.salary > :salary\n\n→ Uses Java class name\n→ Uses Java field names\n→ Hibernate translates to SQL"]
+    end
+    subgraph SQL["Native SQL (DB-specific)"]
+      S["SELECT * FROM employee\nWHERE salary > ?1\n\n→ Uses table name\n→ Uses column names\n→ Sent directly to DB"]
+    end
+    JPQL -->|"Hibernate"| DB[(MySQL)]
+    SQL -->|"Direct"| DB
+
+    style JPQL fill:#0d2a22,stroke:#00d4aa,color:#e2e8f0
+    style SQL fill:#2a2a10,stroke:#ffc847,color:#e2e8f0
+    style DB fill:#0d1a2a,stroke:#60a5fa,color:#60a5fa
+   ```
+   - In JPQL you refer to the Java entity class (`Employee`) and Java field names (`e.salary`), not the DB table/column names. Hibernate translates this to the actual SQL dialect. Native SQL uses real table and column names and bypasses Hibernate's translation - so if you rename a column, native queries break.
+
+
+<br><br>
+
+**Provide examples of range-based queries - employees by age range, avg salary**
+
+- Spring Data JPA supports range keywords in derived method names: `GreaterThan`, `LessThan`, `Between`, `After`, `Before`. For aggregation (`AVG`, `SUM`, `COUNT`), derived methods don't work - you must use `@Query`.
+  ```java
+  public interface EmployeeRepository extends JpaRepository<Employee, Integer> {
+
+    // Ex: employees with salary above a threshold (derived method)
+    List<Employee> findBySalaryGreaterThan(double salary);
+    // → SELECT e FROM Employee e WHERE e.salary > ?1
+
+    // Ex 1: employees whose age is between 30 and 35 (inclusive)
+    List<Employee> findByAgeBetween(int min, int max);
+    // → SELECT e FROM Employee e WHERE e.age BETWEEN ?1 AND ?2
+
+    // Ex 2: average salary across all employees
+    // Can't do this via derived method — aggregation needs @Query
+    @Query(value = "SELECT AVG(e.salary) FROM Employee e")
+    Optional<Double> avgSalary();
+
+    // Other useful range patterns
+    List<Employee> findBySalaryLessThan(double salary);
+    List<Employee> findByAgeGreaterThanEqual(int age);
+    List<Employee> findByNameContaining(String keyword);  // LIKE %keyword%
+  }
+  ```
+  - **Why `Optional<Double>` for `avgSalary`?** Because if the table is empty, `AVG` returns `NULL`. Wrapping in `Optional` forces the caller to handle the null case explicitly - it's cleaner than returning a nullable primitive.
+
+
+<br><br>
+
+**How do you define entity relationships / association mapping in Spring Data JPA?**
+
+- **JPA provides 4 mapping annotations:** `@OneToOne`, `@OneToMany`, `@ManyToOne`, `@ManyToMany`. These tell Hibernate how to model the relationship between two entity tables at the Java level - Hibernate handles the FK column creation and JOIN logic.
+- **Use case:** Customer → Orders (one customer has many orders) — One customer has multiple orders. The `orders` table has a FK column `customer_id` pointing back to `customer`. In JPA, the "many" side (Order) holds the FK and gets `@ManyToOne` + `@JoinColumn`. The "one" side (Customer) gets `@OneToMany(mappedBy=...)`.
+- **Customer ↔ Order DB relationship**
+  ```mermaid
+  erDiagram
+    CUSTOMER {
+        Long id PK
+        String name
+        String email
+    }
+    ORDER {
+        Long id PK
+        String name
+        int qty
+        double price
+        Long customer_id FK
+    }
+    CUSTOMER ||--o{ ORDER : "has many"
+  ```
+- **Code Snippet:**
+  - **`Customer.java` - "one" side**
+    ```java
+    @Entity
+    @Data @Builder @AllArgsConstructor @NoArgsConstructor
+    public class Customer {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private Long id;
+        private String name;
+        private String email;
+
+        // mappedBy = the field name in Order that owns the FK
+        // cascade = ALL: save/delete Customer → cascades to all its Orders
+        @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+        private List<Order> orders;
+    }
+    ```
+  - **`Order.java` - "many" side (owns the FK)**
+    ```java
+    @Entity
+    @Table(name = "orders")   // "order" is reserved SQL keyword — always rename
+    @Data @AllArgsConstructor @NoArgsConstructor
+    public class Order {
+
+        @Id
+        private Long id;
+        private String name;
+        private int qty;
+        private double price;
+
+        // @ManyToOne = many orders belong to one customer
+        // @JoinColumn = name of the FK column in the orders table
+        @ManyToOne
+        @JoinColumn(name = "customer_id")
+        private Customer customer;
+    }
+    ```
+- **Key concepts to explain:**
+  - **`mappedBy`** - tells JPA that the Customer side does NOT own the FK. The Order entity owns it (has `@JoinColumn`). Without `mappedBy`, Hibernate creates a join table, which is wrong for one-to-many.
+  - **`cascade = CascadeType.ALL`** - when you save a Customer with their orders, all orders are persisted automatically. When you delete a Customer, all their orders are deleted too. Options: `PERSIST`, `MERGE`, `REMOVE`, `REFRESH`, `DETACH`, `ALL`.
+  - **`FetchType`** - by default `@OneToMany` is LAZY (orders not loaded until accessed) and `@ManyToOne` is EAGER (customer loaded with every order). Keep OneToMany LAZY in production - loading all orders on every Customer fetch is an N+1 problem waiting to happen.
+- **Common N+1 problem:** If you load 100 customers in one query and each customer's orders are fetched lazily, Hibernate fires 100 additional queries - one per customer. Solution: use `@Query` with `JOIN FETCH c.orders` or use `@EntityGraph` to eagerly fetch in a single JOIN query only when needed.
+
+
+<br><br>
+
+**Is it possible to execute JOIN queries in Spring Data JPA? How?**
+
+- **Yes - but JPA JOINs are object-oriented, not table-oriented.** You JOIN on the entity relationship field (`c.orders`), not on a table and FK column. Hibernate translates this to the correct SQL JOIN with the FK automatically, because the relationship is already defined via `@OneToMany`.
+- There are two patterns for JOIN queries: (1) return raw entity fields as an `Object[]` list, or (2) use a DTO projection via the JPQL `NEW` keyword to get a typed result - much cleaner.
+- **Code Snippet:**
+  - **`CustomerRepository.java`**
+    ```java
+    // Pattern 1 — Simple JOIN returning selected columns as Object[]
+    // c.orders joins Customer to Order via the @OneToMany relationship
+    @Query("SELECT c.name, COUNT(o) FROM Customer c JOIN c.orders o GROUP BY c.id")
+    List<Object[]> findCustomerOrderCount();
+
+    // Pattern 2 — DTO projection using JPQL NEW keyword (strongly typed, cleaner)
+    @Query("SELECT NEW com.javatechie.common.CustomerOrderDTO(c.name, COUNT(o), SUM(o.price)) "
+        + "FROM Customer c JOIN c.orders o GROUP BY c.id")
+    List<CustomerOrderDTO> findCustomerOrderCountResponse();
+    ```
+  - **`CustomerOrderDTO.java` — value object for typed projection**
+    ```java
+    // Must have a matching constructor — JPQL calls it via NEW keyword
+    @Data
+    @AllArgsConstructor
+    public class CustomerOrderDTO {
+        private String customerName;
+        private Long   orderCount;
+        private Double totalRevenue;
+    }
+    ```
+- **Types of JPQL JOIN:** `JOIN` (inner join — only customers with at least 1 order), `LEFT JOIN` (all customers, even those with zero orders), `JOIN FETCH` (inner join + eagerly loads the collection, solves N+1 for that query).
+
+
+<br><br>
+
+**How do you implement Pagination and Sorting in Spring Data JPA?**
+
+- Spring Data JPA provides built-in pagination via `Pageable` and `PageRequest`. You don't write any `LIMIT`/`OFFSET` SQL — pass a `Pageable` to `findAll()` and you get back a `Page<T>` object with the slice of data plus metadata.
+- **Core concepts:** `pageNumber` is zero-indexed (page 0 = first page). pageSize is the number of records per page. With 1000 records and pageSize=100, you have pages 0–9. With pageSize=5, page 0 has records 0–4, page 1 has 5–9, etc.
+- **Code Snippet:**
+  - **`EmployeeService.java` — pagination, sorting, combined**
+    ```java
+    // 1. Sorting only — all records sorted by a field ASC
+    public List<Employee> findEmployeesWithSorting(String field) {
+        return repository.findAll(Sort.by(Sort.Direction.ASC, field));
+    }
+    // → SELECT * FROM employee ORDER BY {field} ASC
+
+    // 2. Pagination only — page N of size X
+    public Page<Employee> findEmployeesWithPagination(int pageNumber, int pageSize) {
+        return repository.findAll(PageRequest.of(pageNumber, pageSize));
+    }
+    // → SELECT * FROM employee LIMIT {pageSize} OFFSET {pageNumber * pageSize}
+
+    // 3. Pagination + Sorting combined — paginated AND sorted
+    public Page<Employee> findEmployeesWithPaginationAndSorting(
+            int pageNumber, int pageSize, String field) {
+        return repository.findAll(PageRequest.of(pageNumber, pageSize).withSort(Sort.by(field)));
+    }
+    // → SELECT * FROM employee ORDER BY {field} LIMIT {pageSize} OFFSET {pageNumber*pageSize}
+    ```
+  - **What `Page<T>` gives you:** not just the list of records - it's a rich object with metadata. The controller can send all of it to the client.
+    ```java
+    Page<Employee> page = service.findEmployeesWithPagination(0, 5);
+
+    page.getContent()         // List<Employee> — the actual records
+    page.getTotalPages()      // total number of pages
+    page.getTotalElements()   // total record count in DB (e.g. 1000)
+    page.getNumber()          // current page number
+    page.getSize()            // page size (records per page)
+    page.isFirst()            // true if this is page 0
+    page.isLast()             // true if no more pages
+    page.hasNext()            // useful for infinite scroll UIs
+    ```
+- **Pagination mechanics — what SQL Hibernate generates**
+  ```mermaid
+  sequenceDiagram
+    participant C as Controller
+    participant S as EmployeeService
+    participant R as EmployeeRepository
+    participant H as Hibernate
+    participant DB as MySQL
+
+    C->>S: findWithPagination(pageNumber=1, pageSize=5)
+    S->>R: findAll(PageRequest.of(1, 5))
+    R->>H: translate Pageable to SQL
+    H->>DB: SELECT * FROM employee LIMIT 5 OFFSET 5
+    H->>DB: SELECT COUNT(*) FROM employee
+    DB-->>H: 5 rows + totalCount=20
+    H-->>R: Page(content=[5 rows], total=20)
+    R-->>S: Page&lt;Employee&gt;
+    S-->>C: Page&lt;Employee&gt;
+  ```
+- **Real-world tip:** In REST APIs, expose pagination via query params: `GET /employees?pageNumber=0&pageSize=10&sortBy=salary`. The controller extracts these and passes to the service. Never return all records from the DB - always paginate. For large datasets, also consider using `Slice<T>` instead of `Page<T>` - Slice skips the `COUNT(*)` query (which can be expensive on big tables) at the cost of not knowing the total number of pages.
