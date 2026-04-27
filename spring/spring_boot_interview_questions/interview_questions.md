@@ -2349,3 +2349,313 @@ There are 3 ways to write custom queries in Spring Data JPA, each with a differe
     S-->>C: Page&lt;Employee&gt;
   ```
 - **Real-world tip:** In REST APIs, expose pagination via query params: `GET /employees?pageNumber=0&pageSize=10&sortBy=salary`. The controller extracts these and passes to the service. Never return all records from the DB - always paginate. For large datasets, also consider using `Slice<T>` instead of `Page<T>` - Slice skips the `COUNT(*)` query (which can be expensive on big tables) at the cost of not knowing the total number of pages.
+
+
+<br><br>
+
+**How will you handle auditing in your application?**
+
+- **Auditing = automatically tracking who created/modified a record and when**, without writing manual code in every service method. Spring Data JPA provides built-in auditing support through a combination of annotations, a listener, and an awareness interface.
+- The 4-step setup for JPA auditing:
+  - **Enable auditing:** add `@EnableJpaAuditing` to a `@Configuration` class. This activates Spring's audit infrastructure.
+  - **Register the listener on the entity:** add `@EntityListeners(AuditingEntityListener.class)` to the entity (or a base class). Hibernate fires this listener on every persist/update.
+  - **Annotate the audit fields:** use `@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy` on the corresponding entity fields.
+  - **Provide the current user:** implement `AuditorAware<String>` to tell Spring who the current actor is. In a real app, this reads from the security context.
+- **Spring JPA Auditing - internal trigger chain**
+  ```mermaid
+  sequenceDiagram
+    participant S as Service
+    participant R as Repository
+    participant H as Hibernate
+    participant L as AuditingEntityListener
+    participant AA as AuditorAware
+    participant DB as Database
+
+    S->>R: save(item)
+    R->>H: persist entity
+    H->>L: @PrePersist / @PreUpdate fires
+    L->>AA: getCurrentAuditor()
+    AA-->>L: "john.doe" (from SecurityContext)
+    L->>H: sets createdAt, updatedAt, createdBy, updatedBy
+    H->>DB: INSERT/UPDATE with all 4 audit columns
+  ```
+
+<br><br>
+
+**Explain the different annotations used for auditing.**
+
+- **`@CreatedDate`**
+  - Automatically set to the current timestamp when the entity is first persisted. Never updated thereafter.
+  - Use with `@Column(updatable=false)` to prevent accidental overwrites. Field type: `LocalDateTime` or `Instant`.
+- **`@CreatedBy`**
+  - Populated with the value returned by `AuditorAware.getCurrentAuditor()` at creation time. Never changes.
+  - Use with `@Column(updatable=false)`. Field type: String (username) or Long (userId).
+- **`@LastModifiedDate`**
+  - Set on first persist, then updated to the current timestamp on every subsequent `save()` / `merge`.
+  - Does NOT need `updatable=false` - must be updatable by design.
+- **`@LastModifiedBy`**
+  - Populated with the current auditor on every update. Shows who last touched the record.
+  - Essential for compliance and accountability in multi-user systems.
+- **Code Snippet:**
+  - **`Item.java` - all 4 annotations on a single entity**
+    ```java
+    @Entity
+    @Table(name = "INVENTORY_ITEMS")
+    @EntityListeners(AuditingEntityListener.class)  // required per-entity (or on base class)
+    @Data @AllArgsConstructor @NoArgsConstructor
+    public class Item {
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private long orderId;
+        private String name, category, sourceSystem;
+        private int qty;
+
+        // ── AUDITING FIELDS ─────────────────────────────────────────────────
+
+        @CreatedDate
+        @Column(updatable = false)  // creation time must NEVER be changed
+        private LocalDateTime createdAt;
+
+        @LastModifiedDate
+        private LocalDateTime updatedAt;
+
+        @CreatedBy
+        @Column(updatable = false)  // who created it must NEVER change
+        private String createdBy;
+
+        @LastModifiedBy
+        private String updatedBy;
+    }
+    ```
+  - **`AuditingConfig.java` - enable the auditing infrastructure**
+    ```java
+    @Configuration
+    @EnableJpaAuditing   // activates @CreatedDate, @CreatedBy etc for JPA
+    public class AuditingConfig {}
+    ```
+  - **`AuditorAwareImpl.java` - tell Spring who the current user is**
+    ```java
+    @Component
+    public class AuditorAwareImpl implements AuditorAware<String> {
+
+        @Override
+        public Optional<String> getCurrentAuditor() {
+            // Simple version (for demo/testing)
+            return Optional.of("JavaTechie");
+
+            // Production version — read from Spring Security context
+            // Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            // if (auth == null || !auth.isAuthenticated()) return Optional.empty();
+            // return Optional.of(auth.getName()); // logged-in username
+        }
+    }
+    ```
+
+
+<br><br>
+
+**How can auditing be applied in a NoSQL database like MongoDB in Spring Boot?**
+
+- The same 4 annotations (`@CreatedDate`, `@LastModifiedDate`, `@CreatedBy`, `@LastModifiedBy`) work with MongoDB - you just swap `@EnableJpaAuditing` for `@EnableMongoAuditing`. The rest of the code is identical.
+- With MongoDB, your document class uses `@Document` instead of `@Entity`, but the audit annotations are the same. Spring Data MongoDB has its own equivalent of `AuditingEntityListener` built in - no extra listener annotation needed on the document class.
+- **Code Snippet:**
+  ```java
+  @Configuration
+  // Switch: comment out JPA, enable Mongo
+  // @EnableJpaAuditing
+  @EnableMongoAuditing
+  public class AuditingConfig {}
+  ```
+  ```java
+  // MongoDB document — audit annotations are IDENTICAL to JPA
+  @Document(collection = "inventory_items")
+  @Data
+  public class Item {
+
+      @Id
+      private String id;  // MongoDB uses String id (ObjectId)
+      private String name, category;
+
+      @CreatedDate         // same annotation
+      private LocalDateTime createdAt;
+
+      @LastModifiedDate    // same annotation
+      private LocalDateTime updatedAt;
+
+      @CreatedBy           // same annotation
+      private String createdBy;
+
+      @LastModifiedBy      // same annotation
+      private String updatedBy;
+  }
+  ```
+
+
+<br><br>
+
+**How can we customize auditing in Spring Boot? (BaseEntity pattern)**
+
+- The best practice for customizing and reusing auditing is to extract all 4 audit fields into a `@MappedSuperclass` abstract base entity and have all your entities extend it. This means you write the audit configuration exactly once and inherit it everywhere.
+- **Without `BaseEntity`:** You'd have to copy-paste all 4 audit fields + `@EntityListeners` into every entity class - `Item`, `Order`, `Product`, `Account`, etc. Violates DRY, and any change requires touching every entity.
+- **Code Snippet:**
+  - **`BaseEntity.java` - shared audit superclass**
+    ```java
+    @MappedSuperclass           // not an entity itself — just mapped fields for subclasses
+    @EntityListeners(AuditingEntityListener.class)
+    @Data @AllArgsConstructor @NoArgsConstructor
+    public abstract class BaseEntity {
+
+        @CreatedDate
+        @Column(updatable = false)
+        private LocalDateTime createdAt;
+
+        @LastModifiedDate
+        private LocalDateTime updatedAt;
+
+        @CreatedBy
+        @Column(updatable = false)
+        private String createdBy;
+
+        @LastModifiedBy
+        private String updatedBy;
+    }
+    ```
+  - **`Item.java` - inherits all audit fields via extends**
+    ```java
+    @Entity
+    @Table(name = "INVENTORY_ITEMS")
+    @EqualsAndHashCode(callSuper = true)  // include parent fields in equals/hashCode
+    @Data @AllArgsConstructor @NoArgsConstructor
+    public class Item extends BaseEntity {  // ← just this
+
+        @Id
+        @GeneratedValue(strategy = GenerationType.IDENTITY)
+        private long orderId;
+        private String name, category, sourceSystem;
+        private int qty;
+        // No audit fields here — inherited from BaseEntity
+    }
+
+    // Every other entity follows the same pattern
+    public class Order   extends BaseEntity { ... }
+    public class Product extends BaseEntity { ... }
+    public class Account extends BaseEntity { ... }
+    ```
+- **BaseEntity inheritance - single audit config, multiple entities**
+  ```mermaid
+  classDiagram
+    class BaseEntity {
+        <<MappedSuperclass>>
+        LocalDateTime createdAt
+        LocalDateTime updatedAt
+        String createdBy
+        String updatedBy
+    }
+
+    class Item {
+        long orderId
+        String name
+        String category
+    }
+
+    class Order {
+        Long id
+        double amount
+        String status
+    }
+
+    class Product {
+        Long id
+        String sku
+        double price
+    }
+
+    BaseEntity <|-- Item
+    BaseEntity <|-- Order
+    BaseEntity <|-- Product
+  ```
+- **What `@MappedSuperclass` means internally:** Hibernate does NOT create a base_entity table. Instead, it includes the superclass fields in each subclass's own table. So `INVENTORY_ITEMS` will have columns `created_at`, `updated_at`, `created_by`, `updated_by` plus the Item-specific columns - all in one flat table. This is "single-table inheritance without polymorphic queries".
+
+
+<br><br>
+
+**How do you track entity modifications across users in a microservices architecture using a centralized Audit Service?**
+
+- In a microservices architecture, multiple services (Order Service, Inventory Service, Payment Service) perform CRUD operations independently. If each service stores audit logs in its own DB, getting a consolidated audit trail for compliance, debugging, or security forensics requires querying multiple services - which is operationally painful.
+- **The solution:** a dedicated Audit Service that consumes events from all other services via a message broker (Kafka/RabbitMQ) and writes them to a centralized cloud DB or audit store. Each service publishes an audit event after every significant state change - the Audit Service persists all of them in one place.
+- **Centralized Audit Service — microservices architecture**
+  ```mermaid
+  flowchart LR
+    subgraph Services["Business Services"]
+        OS["Order\nService"]
+        IS["Inventory\nService"]
+        PS["Payment\nService"]
+    end
+    MB[("Message Broker\nKafka / RabbitMQ")]
+    AS["Audit\nService"]
+    DB[("Cloud Storage\nAudit DB")]
+
+    OS -->|"OrderCreated event"| MB
+    IS -->|"StockUpdated event"| MB
+    PS -->|"PaymentProcessed event"| MB
+    MB --> AS
+    AS --> DB
+
+    style Services fill:#0d1520,stroke:#60a5fa,color:#e2e8f0
+    style MB fill:#2a2a10,stroke:#ffc847,color:#ccb870
+    style AS fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style DB fill:#1a0d2a,stroke:#7b6cff,color:#7b6cff
+  ```
+- **Audit event payload:** each event should contain enough context to reconstruct what happened. A typical audit record schema includes: action (CREATE/UPDATE/DELETE), userId, timestamp, payload as JSON snapshot, and the DB write timestamp.
+  ```java
+  // Audit event published by each service to Kafka topic
+  @Data
+  public class AuditEvent {
+      private String  serviceId;     // "order-service" / "inventory-service"
+      private String  action;        // CREATE / UPDATE / DELETE
+      private String  entityType;    // "Order", "Item"
+      private String  entityId;      // the modified record's ID
+      private String  userId;        // who performed the action
+      private Instant timestamp;     // when it happened
+      private String  dataSnapshot;  // JSON of the entity state at that point
+  }
+
+  // Order Service — publish after save
+  @Service
+  public class OrderService {
+
+      public Order createOrder(Order order) {
+          Order saved = orderRepo.save(order);
+          // publish to audit-topic — fire and forget
+          kafkaTemplate.send("audit-topic", AuditEvent.builder()
+              .serviceId("order-service")
+              .action("CREATE")
+              .entityType("Order")
+              .entityId(String.valueOf(saved.getId()))
+              .userId(getCurrentUser())
+              .timestamp(Instant.now())
+              .dataSnapshot(objectMapper.writeValueAsString(saved))
+              .build());
+          return saved;
+      }
+  }
+
+  // Audit Service — Kafka consumer, writes to audit DB
+  @Service
+  public class AuditConsumer {
+
+      @KafkaListener(topics = "audit-topic")
+      public void consumeAuditEvent(AuditEvent event) {
+          AuditLog log = AuditLog.builder()
+              .action(event.getAction())
+              .userId(event.getUserId())
+              .ts(event.getTimestamp())
+              .data(event.getDataSnapshot())
+              .dbTs(Instant.now())
+              .build();
+          auditLogRepo.save(log);
+      }
+  }
+  ```
+- **Why Kafka/message broker instead of direct HTTP calls? **Because audit logging is a non-critical, asynchronous concern. If the Audit Service is down, the business transaction in Order Service should still succeed. The message stays in Kafka and gets processed when Audit Service recovers. HTTP calls would create tight coupling and degrade performance.
