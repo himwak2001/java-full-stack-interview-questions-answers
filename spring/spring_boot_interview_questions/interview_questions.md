@@ -2659,3 +2659,244 @@ There are 3 ways to write custom queries in Spring Data JPA, each with a differe
   }
   ```
 - **Why Kafka/message broker instead of direct HTTP calls? **Because audit logging is a non-critical, asynchronous concern. If the Audit Service is down, the business transaction in Order Service should still succeed. The message stays in Kafka and gets processed when Audit Service recovers. HTTP calls would create tight coupling and degrade performance.
+
+
+<br><br>
+
+**What is transaction management and how does it work?**
+
+- A transaction is a logical unit of work that groups multiple DB operations together. Either ALL succeed (commit) or ALL fail and the DB is restored to its previous state (rollback). Transactions enforce ACID properties.
+- **Real-world analogy from the tutorial:** HDFC Bank, Account Service - Basant transfers ₹500 to Sam. The operation has two steps: deduct ₹500 from Basant, add ₹500 to Sam. Without a transaction, if the server crashes after step 1, Basant loses money but Sam gets nothing. With `@Transactional`, both steps are a single atomic unit - either both succeed or neither does.
+- **Transaction - success vs partial failure scenario**
+  ```mermaid
+  flowchart TD
+    subgraph TX["@Transactional transfer()"]
+        S1["Step 1: Deduct ₹500 from Basant\nBasant: 10000 → 9500"]
+        S2["💥 forcefullyThrowingException()\nSimulating server crash"]
+        S3["Step 3: Credit ₹500 to Sam\nSam: 5000 → 5500"]
+        S1 --> S2 --> S3
+    end
+
+    TX -->|"Exception thrown"| RB["🔄 ROLLBACK\nBasant stays at 10000\nSam stays at 5000\nData integrity preserved"]
+    TX -->|"No exception"| CM["✅ COMMIT\nBoth accounts updated atomically"]
+
+    style TX fill:#0d1520,stroke:#60a5fa,color:#e2e8f0
+    style RB fill:#2a1010,stroke:#ff6b6b,color:#ff6b6b
+    style CM fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style S2 fill:#2a1010,stroke:#ff6b6b,color:#ff8888
+  ```
+- **ACID Properties:**
+  - **A - Atomicity:** All operations succeed or all fail. No partial updates.
+  - **C - Consistency:** DB moves from one valid state to another. Total balance before = total balance after a transfer.
+  - **I - Isolation:** Concurrent transactions don't see each other's intermediate (uncommitted) data.
+  - **D - Durability:** Once committed, data persists even after a crash.
+- **Internal working**: Spring implements `@Transactional` via AOP proxy (CGLIB). When you call `accountService.transfer()`, you're calling the proxy's method. The proxy begins a transaction (calls `connection.setAutoCommit(false)`), delegates to the real method, then either commits or rolls back based on whether an exception was thrown. This is why it doesn't work on private methods - the proxy can't intercept them.
+
+
+<br><br>
+
+**How will you handle transactions in your application?**
+
+- Simply add `@Transactional` at the service layer method that performs multiple DB operations as a single logical unit. Spring handles begin/commit/rollback automatically.
+- **`AccountService.java` - the complete transfer use case**
+  ```java
+  @Service
+  @RequiredArgsConstructor
+  public class AccountService {
+
+      private final AccountRepository accountRepository;
+
+      @Transactional   // ← single annotation wraps entire method in one transaction
+      public void transfer(Long fromId, Long toId, double amount) {
+
+          // Read both accounts
+          Account sender   = accountRepository.findById(fromId)
+                                  .orElseThrow(() -> new RuntimeException("From Account not found"));
+          Account receiver = accountRepository.findById(toId)
+                                  .orElseThrow(() -> new RuntimeException("To Account not found"));
+
+          if (sender.getBalance() < amount)
+              throw new RuntimeException("Insufficient balance");
+
+          // Step 1: deduct from sender
+          sender.setBalance(sender.getBalance() - amount);
+          accountRepository.save(sender);
+
+          // Step 2: simulated failure (e.g. receiver bank server is down)
+          forcefullyThrowingException();  // → throws RuntimeException
+          // Without @Transactional: sender is debited, receiver never credited!
+          // With    @Transactional: entire transaction rolls back — sender keeps money
+
+          // Step 3: credit to receiver
+          receiver.setBalance(receiver.getBalance() + amount);
+          accountRepository.save(receiver);
+      }
+
+      public void forcefullyThrowingException() {
+          throw new RuntimeException("receiver bank server is down");
+      }
+  }
+  ```
+- **Default rollback rule:** `@Transactional` only rolls back on unchecked exceptions (`RuntimeException` and its subclasses) by default. Checked exceptions (like `IOException`) do NOT trigger rollback unless you explicitly specify: `@Transactional(rollbackFor = Exception.class)`.
+
+
+<br><br>
+
+**What are the different types of Isolation and Propagation?**
+
+- Isolation controls what data a transaction can see from other concurrent transactions that haven't committed yet. Higher isolation = safer data but more locking/slower performance.
+- **4 Isolation Levels (from least to most strict)**
+  - **`READ_UNCOMMITTED` (1)**
+    - Can read data that another transaction modified but hasn't committed yet. Lowest isolation, highest concurrency.
+    - ⚠ Risk: Dirty reads — you see data that may be rolled back
+  - **`READ_COMMITTED` (2)**
+    - Only reads data that's been committed. Most DBs default to this. Prevents dirty reads.
+    - ⚠ Risk: Non-repeatable reads — same query can return different results within a tx
+  - **`REPEATABLE_READ` (4)**
+    - All reads within a transaction return consistent values - even if another tx commits a change. MySQL default.
+    - ⚠ Risk: Phantom reads — new rows can appear in range queries
+  - **`SERIALIZABLE` (8)**
+    - Full isolation - transactions run as if they were sequential. Prevents all read phenomena.
+    - ⚠ Risk: Heavy locking, severely limits concurrency - use only when necessary
+    ```java
+    // Setting isolation — pair it with propagation
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public void transfer(...) { ... }
+
+    // The Spring enum — from Isolation.class (decompiled)
+    public enum Isolation {
+        DEFAULT(-1),          // uses DB default (usually READ_COMMITTED)
+        READ_UNCOMMITTED(1),
+        READ_COMMITTED(2),
+        REPEATABLE_READ(4),
+        SERIALIZABLE(8);
+    }
+    ```
+- **Propagation Types - how transactions are inherited**
+  - **`REQUIRED` (0)**
+    - Default. Join existing transaction if one exists; create new one if not. Method m1 calls m2 - m2 participates in m1's transaction. If m2 fails, m1 also rolls back.
+  - **`REQUIRES_NEW` (3)**
+    - Always create a brand new transaction, suspending any existing one. m2 runs in its own tx independent of m1. If m2 commits and m1 fails later, m2's commit is NOT rolled back. Use for audit logging that must survive the main tx failure.
+  - **`SUPPORTS` (1)**
+    - Run within a transaction if one exists; run without transaction if none. The method adapts to context.
+  - **`MANDATORY` (2)**
+    - Must be called within an existing transaction. Throws `IllegalTransactionStateException` if no active transaction. Use for methods that MUST NOT run standalone.
+  - **`NOT_SUPPORTED` (4)**
+    - Suspend any existing transaction and run without transaction. Use for read-only operations that don't need ACID.
+  - **`NEVER` (5)**
+    - Must NOT run within a transaction. Throws exception if called within one.
+  - **`NESTED` (6)**
+    - Creates a savepoint within the current transaction. If nested fails, only rolls back to the savepoint — the outer tx can still commit. Not supported by all DBs.
+  ```java
+  // Most important real-world example — REQUIRES_NEW for audit logging
+  @Transactional(propagation = Propagation.REQUIRES_NEW)
+  public void saveAuditLog(AuditEvent event) {
+      // This runs in its OWN transaction
+      // If the main business tx rolls back, the audit log is still saved
+      auditRepo.save(event);
+  }
+
+  // Full @Transactional config as shown in tutorial
+  @Transactional(isolation = Isolation.DEFAULT, propagation = Propagation.MANDATORY)
+  public void transfer(...) { ... }
+  ```
+- **Summary:** "`REQUIRED` is the default — the called method shares the caller's transaction. `REQUIRES_NEW` suspends the caller's transaction and starts a fresh one — useful for audit logs that must persist even when the main operation fails. `MANDATORY` throws if there's no active transaction — enforcing that the method is never called outside a transactional context."
+
+<br><br>
+
+**Can we use `@Transactional` on private methods?**
+
+- No - and this is one of the most common `@Transactional` gotchas in interviews. Spring's transaction management works through AOP proxy (CGLIB subclass). The proxy can only intercept public methods that are called from outside the bean. Private methods are invisible to the proxy.
+- **Internal mechanism:** When Spring sees `@Transactional`, it creates a proxy class (like `AccountServiceProxy` extends `AccountService`) that overrides public methods. The proxy's overridden version begins the transaction, calls the real object's method, then commits/rolls back. Since the proxy can't override private methods (Java doesn't allow subclass overriding of private), the annotation is simply ignored.
+- **`AccountServiceProxy.java` - what Spring generates internally (conceptually)**
+  ```java
+  // Spring generates something like this under the hood via CGLIB
+  public class AccountServiceProxy extends AccountService {
+
+      private AccountService target;  // the real bean
+
+      @Override
+      public void transfer(Long fromId, Long toId, double amount) {
+          try {
+              // begin the transaction (connection.setAutoCommit(false))
+              target.transfer(fromId, toId, amount);
+              // commit (connection.commit())
+          } catch (Exception ex) {
+              // rollback (connection.rollback())
+          }
+      }
+      // Private methods: proxy cannot override → @Transactional IGNORED
+  }
+  ```
+- **`@Transactional` on private — why it silently fails**
+  ```mermaid
+  flowchart TD
+    EXT["External caller\n(Controller)"]
+    PROXY["CGLIB Proxy\n(AccountServiceProxy)"]
+    REAL["Real AccountService bean"]
+
+    EXT -->|"transfer() — PUBLIC"| PROXY
+    PROXY -->|"✅ Intercepts → starts TX\nthen delegates"| REAL
+
+    REAL -->|"this.doSomething() — PRIVATE"| REAL
+    REAL -.->|"❌ Bypasses proxy\n@Transactional on doSomething()\ncompletely IGNORED"| NOTE["No new transaction started\nAnnotation has no effect"]
+
+    style PROXY fill:#0d2a22,stroke:#00d4aa,color:#00d4aa
+    style REAL fill:#1a1e2b,stroke:#252a3a,color:#e2e8f0
+    style NOTE fill:#2a1010,stroke:#ff6b6b,color:#ff6b6b
+    style EXT fill:#0d1520,stroke:#60a5fa,color:#60a5fa
+  ```
+
+<br><br>
+
+**How do you handle transactions in a distributed microservices architecture? Can `@Transactional` span multiple microservices?**
+
+- **`@Transactional` cannot span multiple microservices.** Each microservice has its own database and its own transaction context. A `JpaTransactionManager` only manages one datasource and one DB connection - it has no awareness of what happens in another process.
+- Order Service has its own DB and transaction boundary. Payment Service has its own DB and transaction boundary. These are completely isolated — there is no shared transaction context between them. A `RuntimeException` in Payment Service cannot trigger a rollback in Order Service.
+- **Why cross-service `@Transactional` is impossible**
+  ```mermaid
+  flowchart LR
+    subgraph OS["Order Service (JVM 1)"]
+        OM["OrderService\n@Transactional"]
+        ODB[("Order DB")]
+        OM --> ODB
+    end
+    subgraph PS["Payment Service (JVM 2)"]
+        PM["PaymentService\n@Transactional"]
+        PDB[("Payment DB")]
+        PM --> PDB
+    end
+    OM -->|"HTTP call"| PM
+
+    note1["❌ No shared connection pool\n❌ No shared transaction context\n❌ Cross-service rollback impossible\nwith standard @Transactional"]
+
+    style OS fill:#0d1520,stroke:#60a5fa,color:#e2e8f0
+    style PS fill:#1a0d20,stroke:#7b6cff,color:#e2e8f0
+    style note1 fill:#2a1010,stroke:#ff6b6b,color:#ccaaaa
+  ```
+- **Solutions for distributed transactions**
+  - **Saga Pattern (most common in microservices)** — Break the distributed transaction into a sequence of local transactions, each publishing an event. If a step fails, compensating transactions undo the previous steps. Two implementations: Choreography (each service reacts to events independently) and Orchestration (a central saga orchestrator commands each service).
+  - **Two-Phase Commit (2PC) / XA Transactions** — A distributed transaction coordinator (like Atomikos) locks resources in all participating DBs in phase 1, then commits all in phase 2. Technically achieves full ACID across services but is slow, complex, and a single point of failure. Rarely used in cloud-native microservices.
+  - **Outbox Pattern** — Write the event to a local "outbox" table within the same transaction as the business operation. A separate relay process reads the outbox and publishes to Kafka. Guarantees the event is published exactly when the DB operation commits — no distributed transaction needed.
+- **Saga Pattern — Choreography approach**
+  ```mermaid
+  sequenceDiagram
+    participant OS as Order Service
+    participant KB as Kafka / Event Bus
+    participant PS as Payment Service
+    participant IS as Inventory Service
+
+    OS->>OS: createOrder() [local TX]
+    OS->>KB: publish OrderCreated event
+    KB->>PS: OrderCreated consumed
+    PS->>PS: processPayment() [local TX]
+    alt Payment success
+        PS->>KB: publish PaymentSucceeded
+        KB->>IS: PaymentSucceeded consumed
+        IS->>IS: reserveInventory() [local TX]
+    else Payment fails
+        PS->>KB: publish PaymentFailed
+        KB->>OS: PaymentFailed consumed
+        OS->>OS: cancelOrder() — compensating TX 🔄
+    end
+  ```
